@@ -592,6 +592,7 @@ function load(){
         metas: Array.isArray(d.metas) ? d.metas : [],
         deudas: Array.isArray(d.deudas) ? d.deudas : [],
         ayudantes: Array.isArray(d.ayudantes) ? d.ayudantes : [],
+        ventasDueno: Array.isArray(d.ventasDueno) ? d.ventasDueno : [],
         comprasNeg: Array.isArray(d.comprasNeg) ? d.comprasNeg : [],
         prestamos: Array.isArray(d.prestamos) ? d.prestamos : [],
         ajustes: Object.assign(b.ajustes, d.ajustes || {})
@@ -843,7 +844,8 @@ const itemsDe = v => v.items && v.items.length ? v.items : [{n: v.paqN || v.nom,
 function fechaLarga(s){ const d = parseD(s); return d.getDate() + ' de ' + MESES[d.getMonth()] + ' de ' + d.getFullYear(); }
 const numRecibo = v => v.recibo ? '#' + (v.reciboPre ? v.reciboPre + '-' : '') + String(v.recibo).padStart(4, '0') : '';
 
-function registrarRenovacion(c, fecha, cobro){   // cobro = {items, total, mon, metodo, fotos}; sin cobro = su paquete x1
+function registrarRenovacion(c, fecha, cobro){
+  if(AYU && c.delDueno) c.editAyu = Date.now();   // cobro = {items, total, mon, metodo, fotos}; sin cobro = su paquete x1
   const p = prodDe(c), k = paqDe(c), pm = monOk(p.mon);
   cobro = cobro || {items: [{paq: k.id, n: k.n, cred: k.cred, meses: k.meses || 1, cant: 1, precio: k.precio}], total: k.precio, mon: pm};
   const mon = monOk(cobro.mon || pm);
@@ -878,6 +880,7 @@ function hacerRenovar(c){   // boton rapido: su paquete de siempre, un toque
   toast(`✅ ${c.nombre} activo hasta ${fechaCorta(c.vence)} · −${plural(r.cred, 'crédito', 'créditos')} ${AYU ? '' : '(quedan ' + p.stock + ')'}`, () => deshacerRenovacion(c, r));
 }
 function hacerNoRenovo(c){
+  if(AYU && c.delDueno) c.editAyu = Date.now();
   const antes = c.baja; c.baja = hoy(); save(); cerrarSheet(); render();
   toast(`💤 ${c.nombre} no renovó`, () => { if(antes) c.baja = antes; else delete c.baja; save(); render(); });
 }
@@ -1670,7 +1673,7 @@ async function enviarAlDueno(){   // ayudante: archivo con todos sus clientes y 
   const fotos = {};
   for(const x of S.ventas.concat(S.clientes, S.ventas.flatMap(v => v.pagos || []))) for(const id of fotosDe(x)){ if(fotos[id]) continue; try{ const dd = await fotoLeer(id); if(dd) fotos[id] = dd; }catch(e){} }
   const datos = {app: 'mis-gastos', tipo: 'ayudante-envio', version: 1, ayudanteId: AYU.ayudanteId, nombre: AYU.nombre, cuenta: AYU.cuenta, enviado: new Date().toISOString(),
-    clientes: S.clientes, ventas: S.ventas.map(v => Object.assign({}, v, {cuenta: AYU.cuenta, ayu: AYU.ayudanteId})), fotos};
+    clientes: clientesParaSubir(), ventas: S.ventas.map(v => Object.assign({}, v, {cuenta: AYU.cuenta, ayu: AYU.ayudanteId})), fotos};
   const ok = await compartirODescargar(new Blob([JSON.stringify(datos)], {type: 'application/json'}), 'de-' + norm(AYU.nombre).replace(/[^a-z0-9]+/g, '-') + '-' + hoy() + '.json');
   if(ok){ AYU.enviado = datos.enviado; localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); render(); toast('📤 Listo: mándaselo a ' + AYU.dueno); }
 }
@@ -1684,7 +1687,7 @@ function vAyudante(){
   if(S.clientes.length > 3) h += `<input class="inp search" id="buscarCli" type="search" placeholder="🔍 Buscar cliente (nombre o teléfono)" autocomplete="off">`;
   if(pr.length) h += `<section class="card"><h3>Por renovar <small>vencidos o vencen en ${diasAviso()} días</small></h3>${pr.map(c => filaCli(c, true)).join('')}</section>`;
   const resto = S.clientes.filter(c => estadoCli(c) !== 'baja' && !pr.includes(c)).sort((a,b) => norm(a.nombre) < norm(b.nombre) ? -1 : 1);
-  if(resto.length) h += `<section class="card"><h3>Mis clientes <small>${resto.length}</small></h3>${resto.map(c => filaCli(c, false)).join('')}</section>`;
+  if(resto.length) h += `<section class="card"><h3>Clientes <small>${resto.length}</small></h3>${resto.map(c => filaCli(c, false)).join('')}</section>`;
   if(!S.clientes.length) h += `<div class="card empty"><div class="e">👤</div>Toca <b>👤 Cliente nuevo</b>: nombre, su paquete y lo que te pagó. Cuando le toque renovar te sale en «Por renovar». Al terminar el día toca <b>📤 Enviar a ${esc(AYU.dueno)}</b> y mándale el archivo.</div>`;
   if(vs.length) h += `<section class="card"><h3>Mis cobros del mes <small>${vs.length}</small></h3><div class="list">${vs.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
   const bajas = S.clientes.filter(c => estadoCli(c) === 'baja');
@@ -1747,18 +1750,18 @@ function errFb(e){
 }
 window.__trasGuardar = () => {
   if(AYU && AYU.nube){ clearTimeout(tSubida); tSubida = setTimeout(subirEstadoAyu, 1500); }
-  else if(!AYU && S.ajustes.nube){ clearTimeout(tCat); tCat = setTimeout(() => subirCatalogo().catch(() => {}), 2500); }
+  else if(!AYU && S.ajustes.nube){ clearTimeout(tCat); tCat = setTimeout(() => { subirCatalogo().catch(() => {}); subirClientesDueno().catch(() => {}); }, 2500); }
 };
 window.addEventListener('online', () => { if(AYU && AYU.nube) subirEstadoAyu(); else iniciarNube(); });
 async function iniciarNube(){
   try{
     if(AYU && AYU.nube){
       const u = await usuarioFb(); if(!u){ nubeAyuMsg = '⚠️ Se cerró tu sesión: sal del modo ayudante y entra otra vez.'; render(); return; }
-      await refrescarCatalogoAyu(); await subirEstadoAyu(); return;
+      await refrescarCatalogoAyu(); await escucharClientesDueno(); await subirEstadoAyu(); return;
     }
     if(!AYU && S.ajustes.nube){
       const u = await usuarioFb(); if(!u){ nubeEstado = 'Se cerró la sesión: toca Desconectar y conéctate otra vez.'; return; }
-      await subirCatalogo(); await escucharAyudantes();
+      await subirCatalogo(); await subirClientesDueno(); await escucharAyudantes();
     }
   }catch(e){ if(AYU) nubeAyuMsg = '⏳ ' + errFb(e) + ' Se enviará cuando haya conexión.'; else nubeEstado = errFb(e); }
 }
@@ -1787,7 +1790,7 @@ function abrirLoginNube(modo){
       if(crear) await auth.createUserWithEmailAndPassword(email, pass); else await auth.signInWithEmailAndPassword(email, pass);
       if(duen){
         S.ajustes.nube = {email}; save(); cerrarSheet(); render(); toast('☁️ Conectado: ahora es automático');
-        await subirCatalogo(true); for(const a of S.ayudantes) if(a.email) await registrarAyudanteNube(a); await escucharAyudantes(); render();
+        await subirCatalogo(true); await subirClientesDueno(true); for(const a of S.ayudantes) if(a.email) await registrarAyudanteNube(a); await escucharAyudantes(); render();
       } else await entrarComoAyudante(email);
     }catch(e){ $('#nbErr').textContent = errFb(e); $('#nbOk').disabled = false; }
   };
@@ -1812,6 +1815,40 @@ async function registrarAyudanteNube(a){
     await db.doc(`ayudantesPorEmail/${a.email}`).set({dueno: u.uid, ayuId: a.id});
     await subirCatalogo(true); await escucharAyudantes();
   }catch(e){ toast('☁️ ' + errFb(e)); }
+}
+const clientesParaSubir = () => S.clientes.filter(c => !c.delDueno || c.editAyu).map(c => { const x = Object.assign({}, c); delete x.delDueno; delete x.editAyu; return x; });   // lo suyo y lo que cambio
+const ventasDeCli = c => S.ventas.concat(AYU ? (S.ventasDueno || []) : []).filter(v => v.cli === c.id).sort(ordenG);
+let clientesSubidos = '', escuchaCli = null;
+async function subirClientesDueno(forzar){   // dueño: todos sus clientes y sus ultimos pagos (sin costos) para sus ayudantes
+  if(AYU || !S.ajustes.nube || !S.ayudantes.some(a => a.email)) return;
+  const armar = n => { const porCli = {};
+    S.ventas.slice().sort(ordenG).forEach(v => { if(!v.cli) return; const l = porCli[v.cli] = porCli[v.cli] || []; if(l.length < n) l.push(v); });
+    return limpioFs({clientes: S.clientes.map(sinFotos), ventas: Object.values(porCli).flat().map(v => { const x = sinFotos(v); delete x.costo; return x; })}); };
+  let datos = armar(6); if(JSON.stringify(datos).length > 850000) datos = armar(2);   // limite de 1 MB por documento
+  const firma = JSON.stringify(datos); if(!forzar && firma === clientesSubidos) return;
+  const u = await usuarioFb(); if(!u) return; const {db} = await cargarFirebase();
+  await db.doc(`duenos/${u.uid}/catalogo/clientes`).set(Object.assign(datos, {actualizado: Date.now()}));
+  clientesSubidos = firma;
+}
+async function escucharClientesDueno(){   // ayudante: en vivo, los clientes del dueño
+  if(!AYU || !AYU.nube) return;
+  if(escuchaCli) escuchaCli();
+  const {db} = await cargarFirebase();
+  escuchaCli = db.doc(`duenos/${AYU.nube.dueno}/catalogo/clientes`).onSnapshot(snap => { if(snap.exists) aplicarClientesDueno(snap.data()); }, e => { nubeAyuMsg = errFb(e); });
+}
+function aplicarClientesDueno(d){
+  const propios = new Set(S.clientes.filter(c => !c.delDueno).map(c => c.id));
+  const locales = new Map(S.clientes.filter(c => c.delDueno).map(c => [c.id, c]));
+  const delDueno = [];
+  (d.clientes || []).forEach(x => {
+    const c0 = limpiarCli(x); if(!c0 || propios.has(c0.id)) return;
+    const loc = locales.get(c0.id);
+    if(loc && loc.editAyu && loc.editAyu > (+d.actualizado || 0)){ delDueno.push(loc); return; }   // su cambio todavia no llega al dueño
+    c0.delDueno = true; delDueno.push(c0);
+  });
+  S.clientes = S.clientes.filter(c => !c.delDueno).concat(delDueno);
+  S.ventasDueno = (d.ventas || []).map(limpiarVenta).filter(Boolean).filter(v => v.ayu !== AYU.ayudanteId);
+  save(); if($('#sheetWrap').hidden) render();
 }
 async function crearCuentaAyudante(email, pass){   // con una segunda conexion, para no cerrar la sesion del dueño
   await cargarFirebase();
@@ -1882,7 +1919,7 @@ async function subirEstadoAyu(){
     const u = await usuarioFb(); if(!u){ nubeAyuMsg = '⚠️ Se cerró tu sesión: sal del modo ayudante y entra otra vez.'; return; }
     const {db} = await cargarFirebase();
     await db.doc(`duenos/${AYU.nube.dueno}/ayudantes/${AYU.ayudanteId}/datos/estado`).set(limpioFs({
-      clientes: S.clientes.map(sinFotos), ventas: S.ventas.map(v => Object.assign(sinFotos(v), {cuenta: AYU.cuenta, ayu: AYU.ayudanteId})), actualizado: Date.now()}));
+      clientes: clientesParaSubir().map(sinFotos), ventas: S.ventas.map(v => Object.assign(sinFotos(v), {cuenta: AYU.cuenta, ayu: AYU.ayudanteId})), actualizado: Date.now()}));
     AYU.subido = new Date().toISOString(); AYU.enviado = AYU.subido; localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); nubeAyuMsg = '';
   }catch(e){
     nubeAyuMsg = '⏳ ' + errFb(e) + ' Se enviará cuando haya conexión.';
@@ -2961,7 +2998,7 @@ function textoFicha(c){
 }
 function verCliente(c){
   const p = prodDe(c), k = paqDe(c), est = estadoCli(c), a = accesoDe(c) || {}, deu = deudaCli(c);
-  const hist = S.ventas.filter(v => v.cli === c.id).sort(ordenG), ult = hist[0], neg = String(S.ajustes.reciboNombre || '').trim();
+  const hist = ventasDeCli(c), ult = hist[0], neg = String(S.ajustes.reciboNombre || '').trim();
   const cop = (et, val) => `<button type="button" class="f-fila f-cop" data-cop="${esc(val)}" data-et="${et}"><span>${et}</span><b>${esc(val)}</b><i>📋</i></button>`;
   abrirSheet(`<div class="ficha">
     <div class="f-cab"><div><b>${esc(c.nombre)}</b>${neg ? `<small>${esc(neg)}</small>` : ''}</div><span class="f-num">${hist.length ? plural(hist.length, 'pago', 'pagos') : ''}</span></div>
@@ -2996,7 +3033,7 @@ function verCliente(c){
   $('#fAv').onclick = () => abrirAviso(c, volver);
   ['#fVC', '#fVC2'].forEach(id => { if($(id)) $(id).onclick = () => abrirVentaCred({cli: c.id, prod: c.prod}); });
   $('#fEd').onclick = () => editarCliente(c);
-  if($('#fHist')) $('#fHist').onclick = ev => { const b = ev.target.closest('[data-v]'); if(!b) return; const v = S.ventas.find(x => x.id === b.dataset.v); if(v) abrirRecibo(v, volver); };
+  if($('#fHist')) $('#fHist').onclick = ev => { const b = ev.target.closest('[data-v]'); if(!b) return; const v = ventasDeCli(c).find(x => x.id === b.dataset.v); if(v) abrirRecibo(v, volver); };
   $('#fCer').onclick = cerrarSheet;
 }
 
@@ -3008,7 +3045,7 @@ function editarCliente(c){
   let paqSel = (prod().paquetes.find(k => k.id === e.paq) || prod().paquetes[0]).id;
   const paqChips = () => prod().paquetes.map(k => `<button type="button" class="chip${k.id === paqSel ? ' on' : ''}" data-k="${k.id}"><b>${esc(k.n)}</b><small>${plural(k.cred, 'crédito', 'créditos')} · ${fmtEn(k.precio, monOk(prod().mon))}${(k.meses || 1) > 1 ? ' · ' + k.meses + ' meses' : ''}</small></button>`).join('');
   const est = c ? estadoCli(c) : '';
-  const hist = c ? S.ventas.filter(v => v.cli === c.id).sort(ordenG) : [];
+  const hist = c ? ventasDeCli(c) : [];
   abrirSheet(`<h2>${nuevo ? 'Cliente nuevo' : '✏️ ' + esc(c.nombre)}</h2>
     ${c ? `<div class="cli-est ${est}">${textoEstado(c)}</div>
       <div class="neg-btns"><button class="btn primary" id="lRen">✅ Renovó…</button><button class="btn" id="lNo"${est === 'baja' ? ' disabled' : ''}>❌ No renovó</button></div>${fiadoCliHtml(c)}<div class="neg-btns" style="margin:0 0 4px"><button class="btn" id="lVC">💳 Vender créditos</button><button class="btn" id="lAv">💬 Aviso de vencimiento</button></div>` : ''}
@@ -3038,7 +3075,7 @@ function editarCliente(c){
   if($('#lFia')) $('#lFia').onclick = ev => { const b = ev.target.closest('[data-pv]'); if(!b) return; const v = S.ventas.find(x => x.id === b.dataset.pv); if(v) abrirPagoVenta(v, () => abrirCliente(c)); };
   if($('#lVC')) $('#lVC').onclick = () => abrirVentaCred({cli: c.id, prod: c.prod});
   if($('#lAv')) $('#lAv').onclick = () => abrirAviso(c, () => abrirCliente(c));
-  if($('#lHist')) $('#lHist').onclick = ev => { const b = ev.target.closest('[data-v]'); if(!b) return; const v = S.ventas.find(x => x.id === b.dataset.v); if(v) abrirRecibo(v, () => abrirCliente(c)); };
+  if($('#lHist')) $('#lHist').onclick = ev => { const b = ev.target.closest('[data-v]'); if(!b) return; const v = ventasDeCli(c).find(x => x.id === b.dataset.v); if(v) abrirRecibo(v, () => abrirCliente(c)); };
   const tomar = () => {   // pasa lo escrito al cliente (sin guardar todavia)
     const nombre = $('#lNom').value.trim().slice(0, 60);
     if(!nombre){ $('#lErr').textContent = 'Escribe el nombre del cliente.'; $('#lNom').focus(); return null; }
@@ -3061,7 +3098,7 @@ function editarCliente(c){
     if(S.clientes.some(x => x !== c && norm(x.nombre) === norm(d.nombre)) && !confirm(`Ya tienes un cliente llamado «${d.nombre}». ¿Guardar otro con el mismo nombre?`)) return;
     if(c){
       const ven = $('#lVen').value;
-      Object.assign(c, d); if(reFecha.test(ven)) c.vence = ven; actualizarAccesoUltima(c);
+      Object.assign(c, d); if(reFecha.test(ven)) c.vence = ven; actualizarAccesoUltima(c); if(AYU && c.delDueno) c.editAyu = Date.now();
       save(); render(); verCliente(c); toast('Cambios guardados'); return;
     }
     const nc = Object.assign({id: uid(), creado: Date.now(), vence: null}, d);
