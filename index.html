@@ -474,6 +474,11 @@ body.modo-ayu .tabs button:not([data-tab="inicio"]):not([data-tab="negocio"]):no
 .pm-n{text-align:center}
 .pm-n b{display:block;font-size:20px;font-weight:800}
 .pm.tot{border-bottom:0;padding-top:12px}
+
+/* clientes en el inicio de la ayudante (24/11/2026) */
+.cli-num{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center}
+.cli-num b{display:block;font-size:22px;font-weight:800}
+.cli-num small{display:block;font-size:11.5px;color:var(--muted);line-height:1.2}
 </style>
 </head>
 <body>
@@ -884,12 +889,12 @@ function registrarRenovacion(c, fecha, cobro){
   if(cobro.fotos && cobro.fotos.length) v.fotos = cobro.fotos.slice(0, MAX_FOTOS);
   if(cobro.pago) aplicarPagoEstado(v, cobro.pago, cobro.metodo);
   const ac = accesoDe(c); if(ac) v.acceso = ac;
-  S.ventas.push(v); p.stock -= cred;
+  S.ventas.push(v); if(!AYU) p.stock -= cred;
   return {v, p, cred, antes};
 }
 function deshacerRenovacion(c, r){
   const i = S.ventas.indexOf(r.v); if(i >= 0) S.ventas.splice(i, 1);
-  r.p.stock += r.cred; c.vence = r.antes.vence; if(r.antes.baja) c.baja = r.antes.baja; c.paq = r.antes.paq;
+  if(!AYU) r.p.stock += r.cred; c.vence = r.antes.vence; if(r.antes.baja) c.baja = r.antes.baja; c.paq = r.antes.paq;
   if(+S.ajustes.reciboN === r.v.recibo) S.ajustes.reciboN = r.v.recibo - 1;
   save(); render();
 }
@@ -1591,7 +1596,7 @@ const nombreAyu = id => (S.ayudantes.find(a => a.id === id) || {}).nombre || 'ay
 function archivoAcceso(a){   // lo que se le manda a la ayudante: solo productos, paquetes y precios (sin costos ni nada mas)
   return {app: 'mis-gastos', tipo: 'ayudante-acceso', version: 1, ayudanteId: a.id, nombre: a.nombre, cuenta: a.cuenta, letra: a.letra,
     dueno: String(S.ajustes.reciboNombre || '').trim() || 'Jesser', moneda: monBase(), tasa: tasa(), avisoDias: diasAviso(), creado: new Date().toISOString(),
-    productos: S.productos.map(p => ({id: p.id, nombre: p.nombre, mon: monOk(p.mon), costo: 0, stock: Math.round(+p.stock || 0), paquetes: (p.paquetes || []).map(k => ({id: k.id, n: k.n, cred: k.cred, precio: k.precio, meses: k.meses || 1}))}))};
+    productos: S.productos.map(p => ({id: p.id, nombre: p.nombre, mon: monOk(p.mon), costo: +p.costo || 0, stock: Math.round(+p.stock || 0), paquetes: (p.paquetes || []).map(k => ({id: k.id, n: k.n, cred: k.cred, precio: k.precio, meses: k.meses || 1}))}))};
 }
 async function enviarAcceso(a){
   const ok = await compartirODescargar(new Blob([JSON.stringify(archivoAcceso(a))], {type: 'application/json'}), 'acceso-' + norm(a.nombre).replace(/[^a-z0-9]+/g, '-') + '.json');
@@ -1679,9 +1684,9 @@ async function activarAyudante(d, estado){   // telefono de la ayudante: queda e
   if(AYU && AYU.ayudanteId !== d.ayudanteId && !confirm('Este acceso es de otra persona. ¿Cambiar a este acceso?')) return;
   if(!AYU && !confirm(`Este teléfono quedará como ayudante de ${d.dueno || 'Jesser'}: solo verás tus clientes y tus cobros en «${d.cuenta}».\n\n¿Continuar?`)) return;
   const cfg = {ayudanteId: String(d.ayudanteId), nombre: String(d.nombre || '').slice(0, 40), cuenta: String(d.cuenta || '').slice(0, 60), letra: String(d.letra || 'A').slice(0, 3),
-    dueno: String(d.dueno || 'Jesser').slice(0, 40), enviado: AYU ? AYU.enviado : '', nube: d.nube || (AYU && AYU.nube) || null};
+    dueno: String(d.dueno || 'Jesser').slice(0, 40), enviado: AYU ? AYU.enviado : '', nube: d.nube || (AYU && AYU.nube) || null, procesado: +d.procesado || (d.creado ? Date.parse(d.creado) : 0) || Date.now()};
   localStorage.setItem(AYU_KEY, JSON.stringify(cfg));
-  const prods = (Array.isArray(d.productos) ? d.productos : []).map(limpiarProd).filter(Boolean).map(p => Object.assign(p, {costo: 0}));
+  const prods = (Array.isArray(d.productos) ? d.productos : []).map(limpiarProd).filter(Boolean).map(p => p);
   S.productos = prods; S.ajustes.reciboNombre = cfg.dueno; if(typeof d.moneda === 'string') S.ajustes.moneda = d.moneda.slice(0, 5);
   if(+d.tasa > 0) S.ajustes.tasa = +d.tasa; if([3, 5, 7].includes(+d.avisoDias)) S.ajustes.avisoDias = +d.avisoDias;
   if(estado){   // lo que ya tenia en la nube (otro telefono o se borro este)
@@ -1689,6 +1694,10 @@ async function activarAyudante(d, estado){   // telefono de la ayudante: queda e
     S.ajustes.reciboN = S.ventas.reduce((m, v) => Math.max(m, +v.recibo || 0), +S.ajustes.reciboN || 0);
   }
   save(); toast(AYU ? '🔄 Productos y precios actualizados' : '👥 Listo: modo ayudante'); setTimeout(() => location.reload(), 900);
+}
+function stockVer(p){   // la ayudante: el numero del dueño menos lo que ella vendio y el dueño aun no recibe
+  const base = Math.round(+p.stock || 0); if(!AYU) return base;
+  return base - S.ventas.filter(v => v.prod === p.id && (v.creado || 0) > (+AYU.procesado || 0)).reduce((a,v) => a + (+v.cant || 0), 0);
 }
 const ventasSinEnviar = () => S.ventas.filter(v => !AYU.enviado || (v.creado || 0) > Date.parse(AYU.enviado));
 async function enviarAlDueno(){   // ayudante: archivo con todos sus clientes y cobros (y fotos de pagos)
@@ -1722,18 +1731,28 @@ function paquetesVendidos(ventas){   // cuantos de cada paquete (y sueltos) en e
   const sueltas = ventas.filter(v => v.tipo === 'creditos');
   return {porPaq, nSueltas: sueltas.length, credSueltos: sueltas.reduce((a,v) => a + (+v.cant || 0), 0)};
 }
+function resumenMesAyu(mes){
+  const r = {vendido: 0, cobrado: 0, costo: 0, enC: 0, enU: 0, cred: 0};
+  mes.forEach(v => { r.vendido += enB(totalVenta(v), v.mon); r.cobrado += enB(pagadoV(v), v.mon); r.costo += enB(costoVenta(v), v.mon); r.cred += +v.cant || 0;
+    if(monOk(v.mon) === 'US$') r.enU += totalVenta(v); else r.enC += totalVenta(v); });
+  r.ganancia = r.vendido - r.costo;
+  return r;
+}
 function vInicioAyu(){
-  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), pv = paquetesVendidos(mes);
-  const vendido = mes.reduce((a,v) => a + enB(totalVenta(v), v.mon), 0), cobrado = mes.reduce((a,v) => a + enB(pagadoV(v), v.mon), 0);
+  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), r = resumenMesAyu(mes);
   const fia = teDebenFiado(), nFia = S.ventas.filter(v => pendienteV(v) > 0).length, pr = porRenovar();
-  const credUsados = mes.reduce((a,v) => a + (+v.cant || 0), 0);
-  let h = `<section class="card"><div class="lbl">🛒 Vendido en ${nombreMes(ym)}</div><div class="big">${fmt(vendido)}</div>
-    <div class="split"><span>💵 Cobrado <b class="pos">${fmt(cobrado)}</b></span><span>📝 Por cobrar (crédito) <b class="${fia > 0 ? 'rojo' : ''}">${fmt(fia)}</b></span></div>
-    <div class="split" style="margin-top:6px"><span>${plural(mes.length, 'venta', 'ventas')}</span><span>💳 ${plural(credUsados, 'crédito usado', 'créditos usados')}</span><span>🏦 ${esc(AYU.cuenta)}</span></div>
+  const iniMes = parseD(ym + '-01').getTime(), activos = S.clientes.filter(c => estadoCli(c) !== 'baja').length;
+  const nuevos = S.clientes.filter(c => (c.creado || 0) >= iniMes).length, bajas = S.clientes.filter(c => estadoCli(c) === 'baja').length;
+  let h = `<section class="card"><div class="lbl">🛒 Vendido en ${nombreMes(ym)}</div><div class="big">${fmt(r.vendido)}</div>
+    <div class="split"><span>🇳🇮 En córdobas <b>${fmtEn(r.enC, 'C$')}</b></span><span>💵 En dólares <b>${fmtEn(r.enU, 'US$')}</b></span></div>
+    <div class="split" style="margin-top:6px"><span>💵 Cobrado <b class="pos">${fmt(r.cobrado)}</b></span><span>📝 Por cobrar (crédito) <b class="${fia > 0 ? 'rojo' : ''}">${fmt(fia)}</b></span></div>
+    <div class="split" style="margin-top:6px"><span>💳 ${plural(r.cred, 'crédito usado', 'créditos usados')} · costo <b>${fmt(r.costo)}</b></span><span>💰 Ganancia <b class="${r.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(r.ganancia)}</b></span></div>
     ${AYU.nube ? nubeAyuHtml() : ''}</section>
+  <section class="card"><h3>👥 Clientes <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Ver ›</button></h3>
+    <div class="cli-num"><div><b>${activos}</b><small>activos</small></div><div><b>${nuevos}</b><small>nuevos este mes</small></div><div><b class="${pr.length ? 'rojo' : ''}">${pr.length}</b><small>por renovar</small></div><div><b>${bajas}</b><small>no renovaron</small></div></div></section>
   <div class="neg-btns"><button class="btn primary" data-act="nCli">👤 Cliente nuevo</button><button class="btn" data-act="nVCred">💳 Vender créditos</button></div>`;
   if(S.productos.length) h += `<section class="card"><h3>💳 Créditos disponibles <small>del negocio, se actualiza solo</small></h3><div class="disp">${S.productos.map(p =>
-      `<div class="pm"><span><b>${esc(p.nombre)}</b><small>Se pueden vender: ${(p.paquetes || []).map(k => esc(k.n) + ' ' + Math.floor(Math.max(0, +p.stock || 0) / (k.cred || 1))).join(' · ')}</small></span><span class="pm-n"><b class="${(+p.stock || 0) <= 5 ? 'rojo' : ''}">${Math.round(+p.stock || 0)}</b><small>créditos</small></span></div>`).join('')}</div>
+      `<div class="pm"><span><b>${esc(p.nombre)}</b><small>Costo por crédito ${fmtEn(+p.costo || 0, monOk(p.mon))}<br>Se pueden vender: ${(p.paquetes || []).map(k => esc(k.n) + ' ' + Math.floor(Math.max(0, stockVer(p)) / (k.cred || 1))).join(' · ')}</small></span><span class="pm-n"><b class="${stockVer(p) <= 5 ? 'rojo' : ''}">${stockVer(p)}</b><small>créditos</small></span></div>`).join('')}</div>
     <button class="link" style="margin:8px 0 0" data-act="tab" data-tab="creditos">Ver cada paquete ›</button></section>`;
   if(nFia) h += `<button class="card ing-add" data-act="tab" data-tab="fiado"><span>📝</span><span><b>${plural(nFia, 'venta al crédito', 'ventas al crédito')} por cobrar: ${fmt(fia)}</b><small>toca para ver quién debe y anotar cuando pague</small></span></button>`;
   if(pr.length) h += `<section class="card"><h3>⏰ Por renovar <small>${pr.length}</small></h3>${pr.slice(0, 5).map(c => filaCli(c, true)).join('')}${pr.length > 5 ? `<button class="link" style="margin:6px 0 0" data-act="tab" data-tab="negocio">Ver los ${pr.length} ›</button>` : ''}</section>`;
@@ -1755,24 +1774,20 @@ function vFiadoAyu(){
   if(pagados.length) h += `<details class="card bajas"><summary><b>Ya pagaron</b> <small>${pagados.length}</small></summary><div class="list">${pagados.map(itemVenta).join('')}</div></details>`;
   return h;
 }
-function vCreditosAyu(){   // la ayudante: cuanto vendio de cada paquete y de creditos sueltos
-  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), sueltas = mes.filter(v => v.tipo === 'creditos');
-  const porPaq = {};
-  mes.filter(v => v.tipo !== 'creditos').forEach(v => itemsDe(v).forEach(i => {
-    if(!i.paq) return; const o = porPaq[i.paq] = porPaq[i.paq] || {n: 0, cred: 0, total: 0};
-    o.n += +i.cant || 0; o.cred += (+i.cred || 0) * (+i.cant || 0); o.total += enB((+i.precio || 0) * (+i.cant || 0), v.mon); }));
-  const credPaq = Object.values(porPaq).reduce((a,o) => a + o.cred, 0), credSuel = sueltas.reduce((a,v) => a + (+v.cant || 0), 0);
-  const vendido = mes.reduce((a,v) => a + enB(totalVenta(v), v.mon), 0), cobrado = mes.reduce((a,v) => a + enB(pagadoV(v), v.mon), 0);
-  const dispTot = S.productos.reduce((a,p) => a + Math.max(0, Math.round(+p.stock || 0)), 0);
+function vCreditosAyu(){   // la ayudante: disponibles, precios, costos y ganancia
+  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), sueltas = mes.filter(v => v.tipo === 'creditos'), r = resumenMesAyu(mes), pv = paquetesVendidos(mes);
+  const dispTot = S.productos.reduce((a,p) => a + Math.max(0, stockVer(p)), 0);
   let h = `<section class="card"><div class="lbl">💳 Créditos disponibles</div><div class="big ${dispTot <= 5 ? 'neg' : ''}">${plural(dispTot, 'crédito', 'créditos')}</div>
-    <div class="split"><span>Usados en ${MESES[+ym.slice(5) - 1]}: <b>${credPaq + credSuel}</b> (${credPaq} en paquetes, ${credSuel} sueltos)</span></div>
-    <div class="split" style="margin-top:6px"><span>🛒 Vendido <b>${fmt(vendido)}</b></span><span>💵 Cobrado <b>${fmt(cobrado)}</b></span><span>🏦 En <b>${esc(AYU.cuenta)}</b></span></div></section>`;
-  h += `<section class="card"><h3>Paquetes <small>disponibles con los créditos que hay</small></h3>${S.productos.map(p => `${S.productos.length > 1 ? `<div class="cats-t" style="margin:6px 0 2px">${esc(p.nombre)}</div>` : ''}<div class="paq-mes">${(p.paquetes || []).map(k => {
-      const o = porPaq[k.id] || {n: 0, cred: 0, total: 0};
-      return `<div class="pm"><span><b>${esc(k.n)}</b><small>${plural(k.cred, 'crédito', 'créditos')} · ${fmtEn(k.precio, monOk(p.mon))}${(k.meses || 1) > 1 ? ' · ' + k.meses + ' meses' : ''}</small></span><span class="pm-n"><b class="${Math.floor(Math.max(0, +p.stock || 0) / (k.cred || 1)) <= 1 ? 'rojo' : 'pos'}">${Math.floor(Math.max(0, +p.stock || 0) / (k.cred || 1))}</b><small>disponibles</small></span><span class="pm-n"><b>${o.n}</b><small>${o.n === 1 ? 'vendido' : 'vendidos'}</small></span></div>`; }).join('')}</div>`).join('')
-    || '<p class="hint" style="margin:0">Aún no hay paquetes.</p>'}
-    <div class="pm tot"><span><b>Créditos sueltos</b><small>vendidos con «Vender créditos» este mes</small></span><span class="pm-n"><b>${dispTot}</b><small>disponibles</small></span><span class="pm-n"><b>${credSuel}</b><small>vendidos</small></span></div></section>
-  <button class="btn primary" data-act="nVCred" style="margin:0 0 12px">💳 Vender créditos</button>`;
+    <div class="split"><span>Usados en ${MESES[+ym.slice(5) - 1]}: <b>${r.cred}</b> (${r.cred - pv.credSueltos} en paquetes, ${pv.credSueltos} sueltos)</span></div>
+    <div class="split" style="margin-top:6px"><span>🛒 Vendido <b>${fmt(r.vendido)}</b></span><span>💳 Costo total en créditos <b>${fmt(r.costo)}</b></span><span>💰 Ganancia total <b class="${r.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(r.ganancia)}</b></span></div>
+    <div class="split" style="margin-top:6px"><span>💵 Cobrado <b>${fmt(r.cobrado)}</b></span><span>🏦 En <b>${esc(AYU.cuenta)}</b></span></div></section>`;
+  h += S.productos.map(p => { const m = monOk(p.mon), cu = +p.costo || 0, st = stockVer(p);
+    return `<section class="card"><h3>${esc(p.nombre)} <small>costo por crédito ${fmtEn(cu, m)}</small></h3><div class="paq-mes">${(p.paquetes || []).map(k => {
+      const o = pv.porPaq[k.id] || {n: 0, cred: 0}, cuesta = k.cred * cu, gana = k.precio - cuesta, disp = Math.floor(Math.max(0, st) / (k.cred || 1));
+      return `<div class="pm"><span><b>${esc(k.n)}</b><small>Cliente final ${fmtEn(k.precio, m)} · ${fmtEn(k.precio / (k.cred || 1), m)} por crédito<br>${plural(k.cred, 'crédito', 'créditos')} · cuesta ${fmtEn(cuesta, m)} · ganas <b class="${gana >= 0 ? 'pos' : 'rojo'}">${fmtEn(gana, m)}</b></small></span><span class="pm-n"><b class="${disp <= 1 ? 'rojo' : 'pos'}">${disp}</b><small>disponibles</small></span><span class="pm-n"><b>${o.n}</b><small>${o.n === 1 ? 'vendido' : 'vendidos'}</small></span></div>`; }).join('')}
+      <div class="pm tot"><span><b>Créditos sueltos</b><small>con «Vender créditos» · costo ${fmtEn(cu, m)} c/u</small></span><span class="pm-n"><b>${Math.max(0, st)}</b><small>disponibles</small></span><span class="pm-n"><b>${pv.credSueltos}</b><small>vendidos</small></span></div></div></section>`; }).join('')
+    || '<div class="card empty">Aún no hay productos.</div>';
+  h += `<button class="btn primary" data-act="nVCred" style="margin:0 0 12px">💳 Vender créditos</button>`;
   if(sueltas.length) h += `<section class="card"><h3>Ventas de créditos sueltos del mes <small>${sueltas.length}</small></h3><div class="list">${sueltas.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
   const antes = S.ventas.filter(v => v.tipo === 'creditos' && !v.fecha.startsWith(ym)).sort(ordenG).slice(0, 20);
   if(antes.length) h += `<details class="card bajas"><summary><b>Créditos sueltos de meses anteriores</b> <small>${antes.length}</small></summary><div class="list">${antes.map(itemVenta).join('')}</div></details>`;
@@ -1884,8 +1899,9 @@ function abrirLoginNube(modo){
 }
 async function subirCatalogo(forzar){
   if(AYU || !S.ajustes.nube) return;
-  const cat = limpioFs({productos: S.productos.map(p => ({id: p.id, nombre: p.nombre, mon: monOk(p.mon), stock: Math.round(+p.stock || 0), paquetes: (p.paquetes || []).map(k => ({id: k.id, n: k.n, cred: k.cred, precio: k.precio, meses: k.meses || 1}))})),
-    dueno: String(S.ajustes.reciboNombre || '').trim() || 'Jesser', moneda: monBase(), tasa: tasa(), avisoDias: diasAviso()});
+  const cat = limpioFs({productos: S.productos.map(p => ({id: p.id, nombre: p.nombre, mon: monOk(p.mon), costo: +p.costo || 0, stock: Math.round(+p.stock || 0), paquetes: (p.paquetes || []).map(k => ({id: k.id, n: k.n, cred: k.cred, precio: k.precio, meses: k.meses || 1}))})),
+    dueno: String(S.ajustes.reciboNombre || '').trim() || 'Jesser', moneda: monBase(), tasa: tasa(), avisoDias: diasAviso(),
+    procesado: Object.fromEntries(S.ayudantes.filter(a => a.nubeTs).map(a => [a.id, a.nubeTs]))});   // hasta donde el dueño ya conto lo de cada ayudante
   const firma = JSON.stringify(cat); if(!forzar && firma === catalogoSubido) return;
   const u = await usuarioFb(); if(!u) return;
   const {db} = await cargarFirebase();
@@ -1990,13 +2006,15 @@ async function entrarComoAyudante(email){
   const cat = (await db.doc(`duenos/${dueno}/catalogo/actual`).get()).data() || {};
   const est = await db.doc(`duenos/${dueno}/ayudantes/${ayuId}/datos/estado`).get();
   await activarAyudante({ayudanteId: ayuId, nombre: ay.nombre, cuenta: ay.cuenta, letra: ay.letra, dueno: cat.dueno, moneda: cat.moneda, tasa: cat.tasa, avisoDias: cat.avisoDias,
-    productos: cat.productos || [], nube: {dueno, email}}, est.exists ? est.data() : null);
+    productos: cat.productos || [], procesado: +((cat.procesado || {})[ayuId]) || 0, nube: {dueno, email}}, est.exists ? est.data() : null);
 }
 async function refrescarCatalogoAyu(){   // productos y precios nuevos del dueño
   const {db} = await cargarFirebase();
   const cat = (await db.doc(`duenos/${AYU.nube.dueno}/catalogo/actual`).get()).data(); if(!cat) return;
-  const prods = (cat.productos || []).map(limpiarProd).filter(Boolean).map(p => Object.assign(p, {costo: 0}));
-  if(JSON.stringify(prods) === JSON.stringify(S.productos)) return;
+  const prods = (cat.productos || []).map(limpiarProd).filter(Boolean).map(p => p);
+  const proc = +((cat.procesado || {})[AYU.ayudanteId]) || 0, cambioProc = proc && proc !== AYU.procesado;
+  if(cambioProc){ AYU.procesado = proc; localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); }
+  if(JSON.stringify(prods) === JSON.stringify(S.productos)){ if(cambioProc && $('#sheetWrap').hidden) render(); return; }
   S.productos = prods; if(cat.dueno) S.ajustes.reciboNombre = cat.dueno; if(+cat.tasa > 0) S.ajustes.tasa = +cat.tasa;
   save(); if($('#sheetWrap').hidden) render();
 }
@@ -2017,7 +2035,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1623';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261124-1634';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -3362,7 +3380,7 @@ function abrirVentaCred(pre){   // vender creditos sueltos: cantidad y precio a 
     const fia = getPg().fiado; if(fia) $('#wAb').value = t; else $('#wTot').value = t;
     res(); $('#wOcr').textContent = '📷 Leí ' + (det ? det + ' = ' : '') + fmtEn(t, mon) + (fia ? ' → abono' : ' → precio total'); }));
   const res = () => { const p = prod(), n = entero($('#wCant').value), t = parseMonto($('#wTot').value), cu = convMon(p.costo, monOk(p.mon), mon);
-    $('#wRes').textContent = n > 0 ? (AYU ? (t > 0 ? plural(n, 'crédito', 'créditos') + ' a ' + fmtEn(t / n, mon) + ' c/u' : '') : `Te cuestan ${fmtEn(n * cu, mon)}${t >= 0 ? ' · ganas ' + fmtEn(t - n * cu, mon) : ''} · te quedarían ${p.stock - n} créditos`) : ''; };
+    $('#wRes').textContent = n > 0 ? (AYU ? (t > 0 ? plural(n, 'crédito', 'créditos') + ' a ' + fmtEn(t / n, mon) + ' c/u · cuestan ' + fmtEn(n * cu, mon) + ' · ganas ' + fmtEn(t - n * cu, mon) : 'Cuestan ' + fmtEn(n * cu, mon)) : `Te cuestan ${fmtEn(n * cu, mon)}${t >= 0 ? ' · ganas ' + fmtEn(t - n * cu, mon) : ''} · te quedarían ${p.stock - n} créditos`) : ''; };
   $('#wCant').addEventListener('input', res); $('#wTot').addEventListener('input', res);
   if($('#wProd')) $('#wProd').onclick = ev => { const b = ev.target.closest('[data-p]'); if(!b) return; prodSel = b.dataset.p; marcarChip($('#wProd'), 'p', prodSel); res(); };
   $('#wMon').onclick = ev => { const b = ev.target.closest('[data-mon]'); if(!b || b.dataset.mon === mon) return; const t = parseMonto($('#wTot').value), viejo = mon;
@@ -3383,10 +3401,10 @@ function abrirVentaCred(pre){   // vender creditos sueltos: cantidad y precio a 
       cant: n, total, costo: convMon(p.costo, monOk(p.mon), mon), mon, fecha, metodo, recibo: S.ajustes.reciboN, ...(fotos.length ? {fotos: fotos.slice()} : {}), ...(cli && accesoDe(cli) ? {acceso: accesoDe(cli)} : {})};
     aplicarPagoEstado(v, getPg(), metodo);
     if(AYU){ v.cuenta = AYU.cuenta; v.ayu = AYU.ayudanteId; v.reciboPre = AYU.letra; }
-    S.ventas.push(v); p.stock -= n;
+    S.ventas.push(v); if(!AYU) p.stock -= n;
     save(); render(); abrirRecibo(v, cli0 ? () => abrirCliente(cli0) : null);
     toast(`💳 ${plural(n, 'crédito vendido', 'créditos vendidos')}${AYU ? '' : ' · quedan ' + p.stock}`, () => {
-      const i = S.ventas.indexOf(v); if(i >= 0) S.ventas.splice(i, 1); p.stock += n; if(+S.ajustes.reciboN === v.recibo) S.ajustes.reciboN = v.recibo - 1; save(); render(); cerrarSheet(); });
+      const i = S.ventas.indexOf(v); if(i >= 0) S.ventas.splice(i, 1); if(!AYU) p.stock += n; if(+S.ajustes.reciboN === v.recibo) S.ajustes.reciboN = v.recibo - 1; save(); render(); cerrarSheet(); });
   };
   setTimeout(() => $('#wCant') && (cli0 ? $('#wCant').focus() : $('#wCli').focus()), 120);
 }
