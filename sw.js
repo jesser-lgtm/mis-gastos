@@ -1,13 +1,12 @@
-// Mis Gastos · modo sin conexion v2 (23/11/2026). Cambios contra v1:
-// - Con internet y el servidor pidiendo sesion (401), se muestra el login (no se abre la copia guardada).
-// - Si el servidor no responde bien (caido, tunel apagado, pagina de error de Cloudflare), se abre la copia guardada.
-// - Nunca se guarda una respuesta de error ni el login en lugar de la app.
-const CACHE = 'mis-gastos-v2';
+// Mis Gastos · modo sin conexion v3 (24/11/2026, GitHub Pages).
+// - Con internet: SIEMPRE pide la version mas nueva de la app (GitHub deja guardar la pagina 10 min; aqui se salta eso).
+// - Sin internet o si GitHub falla: abre la copia guardada en el telefono.
+// - Nunca se guarda una respuesta de error en lugar de la app.
+const CACHE = 'mis-gastos-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
-  // la app y lo demas se guardan si se puede; sin sesion la app da 401 y se guarda despues, al entrar
-  e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => fetch(u).then(r => r.ok ? c.put(u, r) : null).catch(() => null))))
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => fetch(u, {cache: 'no-cache'}).then(r => r.ok ? c.put(u, r) : null).catch(() => null))))
     .then(() => self.skipWaiting()));
 });
 
@@ -26,21 +25,19 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  if (['/login', '/salir', '/cuenta'].includes(url.pathname)) return;   // siempre al servidor
 
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      fetch(req.url, {cache: 'no-cache', credentials: 'same-origin'})   // la version mas nueva, sin la copia de 10 min
         .then(r => {
-          if (r.ok && !r.redirected) {
+          if (r.ok) {
             const cp = r.clone();
             caches.open(CACHE).then(c => c.put('./index.html', cp));
             return r;
           }
-          if (r.status === 401 || r.status === 429 || r.redirected) return r;   // pide sesion: se muestra el login
-          return caches.match('./index.html').then(hit => hit || r);          // servidor con error: la copia guardada
+          return caches.match('./index.html').then(hit => hit || r);          // GitHub con error: la copia guardada
         })
-        .catch(() => caches.match('./index.html'))                            // sin internet / servidor apagado
+        .catch(() => caches.match('./index.html'))                            // sin internet
     );
     return;
   }

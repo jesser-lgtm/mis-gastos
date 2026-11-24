@@ -3744,7 +3744,9 @@ setTimeout(limpiarFotosSueltas, 4000);
 setTimeout(iniciarNube, 1200);
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  const habiaSW = !!navigator.serviceWorker.controller;   // si llega una version nueva, recarga una vez sola
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if(habiaSW && !window.__recargado){ window.__recargado = true; location.reload(); } });
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).then(r => r.update()).catch(() => {}); });
 }
 </script>
 </body>
