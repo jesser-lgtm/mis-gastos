@@ -465,6 +465,15 @@ body.modo-ayu .tabs button:not([data-tab="negocio"]):not([data-tab="fiado"]):not
 .act-banner{position:fixed;left:12px;right:12px;top:calc(68px + env(safe-area-inset-top));z-index:9;display:flex;align-items:center;justify-content:space-between;gap:10px;
   background:var(--accent);color:var(--on-accent);border-radius:14px;padding:10px 10px 10px 14px;font-weight:650;font-size:14.5px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
 .act-banner button{border:0;border-radius:10px;padding:9px 14px;font-weight:800;font-size:14px;background:var(--on-accent);color:var(--accent);flex:none}
+
+/* paquetes del mes en Créditos de la ayudante (24/11/2026) */
+.paq-mes{display:grid;gap:0}
+.pm{display:grid;grid-template-columns:minmax(0,1fr) 64px 64px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.pm span:first-child b{display:block;font-size:15px}
+.pm small{display:block;color:var(--muted);font-size:12px}
+.pm-n{text-align:center}
+.pm-n b{display:block;font-size:20px;font-weight:800}
+.pm.tot{border-bottom:0;padding-top:12px}
 </style>
 </head>
 <body>
@@ -908,7 +917,7 @@ function filaCli(c, botones){
     ${botones ? `<div class="cli-btns"><button class="btn small primary" data-act="renovar" data-id="${c.id}">✅ Renovó</button><button class="btn small" data-act="noRenovo" data-id="${c.id}">❌ No renovó</button><button class="btn small" data-act="avisar" data-id="${c.id}">💬 Avisar</button></div>` : ''}</div>`;
 }
 function itemVenta(v){
-  const m = monOk(v.mon), det = v.paqN ? esc(v.paqN) + ' · ' + plural(v.cant, 'crédito', 'créditos') : plural(v.cant, 'crédito', 'créditos');
+  const m = monOk(v.mon), det = v.paqN && v.tipo !== 'creditos' ? esc(v.paqN) + ' · ' + plural(v.cant, 'crédito', 'créditos') : plural(v.cant, 'crédito', 'créditos');
   return `<button class="item ing wrap" data-act="editVenta" data-id="${v.id}"><span class="ico">🛒</span>
     <span class="txt"><b>${esc(v.cliente || v.nom)}</b><small>${esc(v.nom)} · ${det}${v.metodo ? ' · ' + esc(v.metodo) : ''}${nFotos(v)}${v.cuenta ? ' · 🏦 ' + esc(v.cuenta) : ''}${v.fiado ? (pendienteV(v) > 0 ? ` · <span class="debe-b">📝 debe ${fmtEn(pendienteV(v), m)}</span>` : ' · ✓ fiado pagado') : ''}</small></span>
     <span class="amt">+${fmtEn(totalVenta(v), m)}<small>${fechaCorta(v.fecha)}</small></span></button>`;
@@ -1718,17 +1727,26 @@ function vFiadoAyu(){
   if(pagados.length) h += `<details class="card bajas"><summary><b>Ya pagaron</b> <small>${pagados.length}</small></summary><div class="list">${pagados.map(itemVenta).join('')}</div></details>`;
   return h;
 }
-function vCreditosAyu(){
-  const ym = mesActual(), vc = S.ventas.filter(v => v.tipo === 'creditos'), mes = vc.filter(v => v.fecha.startsWith(ym));
-  const nCred = mes.reduce((a,v) => a + (+v.cant || 0), 0), tot = mes.reduce((a,v) => a + enB(totalVenta(v), v.mon), 0);
-  const cob = mes.reduce((a,v) => a + enB(pagadoV(v), v.mon), 0);
-  let h = `<section class="card"><div class="lbl">💳 Créditos vendidos en ${nombreMes(ym)}</div><div class="big">${plural(nCred, 'crédito', 'créditos')}</div>
-    <div class="split"><span>🛒 Vendido <b>${fmt(tot)}</b></span><span>💵 Cobrado <b>${fmt(cob)}</b></span><span>🏦 En <b>${esc(AYU.cuenta)}</b></span></div></section>
+function vCreditosAyu(){   // la ayudante: cuanto vendio de cada paquete y de creditos sueltos
+  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), sueltas = mes.filter(v => v.tipo === 'creditos');
+  const porPaq = {};
+  mes.filter(v => v.tipo !== 'creditos').forEach(v => itemsDe(v).forEach(i => {
+    if(!i.paq) return; const o = porPaq[i.paq] = porPaq[i.paq] || {n: 0, cred: 0, total: 0};
+    o.n += +i.cant || 0; o.cred += (+i.cred || 0) * (+i.cant || 0); o.total += enB((+i.precio || 0) * (+i.cant || 0), v.mon); }));
+  const credPaq = Object.values(porPaq).reduce((a,o) => a + o.cred, 0), credSuel = sueltas.reduce((a,v) => a + (+v.cant || 0), 0);
+  const vendido = mes.reduce((a,v) => a + enB(totalVenta(v), v.mon), 0), cobrado = mes.reduce((a,v) => a + enB(pagadoV(v), v.mon), 0);
+  let h = `<section class="card"><div class="lbl">💳 Créditos usados en ${nombreMes(ym)}</div><div class="big">${plural(credPaq + credSuel, 'crédito', 'créditos')}</div>
+    <div class="split"><span>📦 En paquetes <b>${credPaq}</b></span><span>💳 Sueltos <b>${credSuel}</b></span></div>
+    <div class="split" style="margin-top:6px"><span>🛒 Vendido <b>${fmt(vendido)}</b></span><span>💵 Cobrado <b>${fmt(cobrado)}</b></span><span>🏦 En <b>${esc(AYU.cuenta)}</b></span></div></section>`;
+  h += `<section class="card"><h3>Paquetes este mes</h3>${S.productos.map(p => `${S.productos.length > 1 ? `<div class="cats-t" style="margin:6px 0 2px">${esc(p.nombre)}</div>` : ''}<div class="paq-mes">${(p.paquetes || []).map(k => {
+      const o = porPaq[k.id] || {n: 0, cred: 0, total: 0};
+      return `<div class="pm"><span><b>${esc(k.n)}</b><small>${plural(k.cred, 'crédito', 'créditos')} · ${fmtEn(k.precio, monOk(p.mon))}${(k.meses || 1) > 1 ? ' · ' + k.meses + ' meses' : ''}</small></span><span class="pm-n"><b>${o.n}</b><small>${o.n === 1 ? 'vendido' : 'vendidos'}</small></span><span class="pm-n"><b>${o.cred}</b><small>créditos</small></span></div>`; }).join('')}</div>`).join('')
+    || '<p class="hint" style="margin:0">Aún no hay paquetes.</p>'}
+    <div class="pm tot"><span><b>Créditos sueltos</b><small>vendidos con «Vender créditos»</small></span><span class="pm-n"><b>${sueltas.length}</b><small>${sueltas.length === 1 ? 'venta' : 'ventas'}</small></span><span class="pm-n"><b>${credSuel}</b><small>créditos</small></span></div></section>
   <button class="btn primary" data-act="nVCred" style="margin:0 0 12px">💳 Vender créditos</button>`;
-  h += mes.length ? `<section class="card"><h3>Ventas de créditos del mes <small>${mes.length}</small></h3><div class="list">${mes.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`
-    : '<div class="card empty"><div class="e">💳</div>Toca <b>💳 Vender créditos</b>: el cliente (o el nombre de quien compra), cuántos créditos y el precio total. Sale su recibo y le llega solo a ' + esc(AYU.dueno) + '.</div>';
-  const antes = vc.filter(v => !v.fecha.startsWith(ym)).sort(ordenG).slice(0, 20);
-  if(antes.length) h += `<details class="card bajas"><summary><b>Meses anteriores</b> <small>${antes.length}</small></summary><div class="list">${antes.map(itemVenta).join('')}</div></details>`;
+  if(sueltas.length) h += `<section class="card"><h3>Ventas de créditos sueltos del mes <small>${sueltas.length}</small></h3><div class="list">${sueltas.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
+  const antes = S.ventas.filter(v => v.tipo === 'creditos' && !v.fecha.startsWith(ym)).sort(ordenG).slice(0, 20);
+  if(antes.length) h += `<details class="card bajas"><summary><b>Créditos sueltos de meses anteriores</b> <small>${antes.length}</small></summary><div class="list">${antes.map(itemVenta).join('')}</div></details>`;
   return h;
 }
 function vAjustesAyu(){
@@ -1968,7 +1986,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1600';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261124-1613';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
