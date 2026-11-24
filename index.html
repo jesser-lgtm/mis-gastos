@@ -454,7 +454,7 @@ textarea.inp{width:100%;resize:vertical;font:inherit;font-size:15px;line-height:
 /* modo ayudante (24/11/2026) */
 .tabs button[data-tab="fiado"],.tabs button[data-tab="creditos"]{display:none}
 body.modo-ayu .tabs button[data-tab="fiado"],body.modo-ayu .tabs button[data-tab="creditos"]{display:flex}
-body.modo-ayu .tabs button:not([data-tab="negocio"]):not([data-tab="fiado"]):not([data-tab="creditos"]):not([data-tab="ajustes"]){display:none}
+body.modo-ayu .tabs button:not([data-tab="inicio"]):not([data-tab="negocio"]):not([data-tab="fiado"]):not([data-tab="creditos"]):not([data-tab="ajustes"]){display:none}
 
 
 /* nube (24/11/2026) */
@@ -632,6 +632,7 @@ if(!Array.isArray(S.ingresos)) S.ingresos = [];
 if(!Array.isArray(S.ingFijos)) S.ingFijos = [];
 ['productos', 'ventas', 'comprasNeg', 'prestamos', 'clientes', 'tarjetas', 'metas', 'deudas', 'ayudantes'].forEach(k => { if(!Array.isArray(S[k])) S[k] = []; });
 if(!Array.isArray(S.ajustes.excluidos)) S.ajustes.excluidos = [];
+delete S.ajustes.verEn;   // el C$|US$ de Inicio es solo para mirar: al abrir, siempre en la moneda principal
 
 /* ================= Utilidades ================= */
 const $ = s => document.querySelector(s);
@@ -762,7 +763,7 @@ function ritmoHormiga(){
 const AYU_KEY = KEY + '-ayudante';
 const AYU = (() => { try{ const a = JSON.parse(localStorage.getItem(AYU_KEY) || 'null'); return a && a.ayudanteId ? a : null; }catch(e){ return null; } })();
 if(AYU) document.body.classList.add('modo-ayu');
-let tab = AYU ? 'negocio' : 'inicio', mes = mesActual(), filtroCat = null, busqueda = '', verMov = 'todo';
+let tab = 'inicio', mes = mesActual(), filtroCat = null, busqueda = '', verMov = 'todo';
 
 function temaOscuro(){
   const t = S.ajustes.tema;
@@ -779,17 +780,18 @@ function aplicarTema(){
 function render(){
   aplicarTema();
   migrarNegocio();
-  if(AYU && !['negocio', 'fiado', 'creditos', 'ajustes'].includes(tab)) tab = 'negocio';
+  if(AYU && !['inicio', 'negocio', 'fiado', 'creditos', 'ajustes'].includes(tab)) tab = 'inicio';
   if(!AYU && (tab === 'fiado' || tab === 'creditos')) tab = 'negocio';
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  const conMes = tab === 'inicio' || tab === 'movs';
+  const conMes = !AYU && (tab === 'inicio' || tab === 'movs');
   $('#mesnav').hidden = !conMes;
   $('#titulo').closest('header').classList.toggle('apretado', tab === 'movs');
   $('#titulo').textContent = {inicio:'Mis gastos', movs:'Movimientos', fijos:'Fijos y suscripciones', negocio:'Clientes', fiado:'Fiado', creditos:'Créditos', finanzas:'Finanzas', hormiga:'Gastos hormiga', ajustes:'Ajustes'}[tab];
+  if(AYU && tab === 'inicio') $('#titulo').textContent = 'Inicio';
   $('#mesLabel').textContent = nombreMes(mes);
   $('#mesSig').disabled = mes >= mesActual();
   $('#fab').hidden = tab === 'ajustes' || tab === 'fiado';
-  const vistas = {inicio:vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, fiado:vFiadoAyu, creditos:vCreditosAyu, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
+  const vistas = {inicio:AYU ? vInicioAyu : vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, fiado:vFiadoAyu, creditos:vCreditosAyu, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
   monVista = tab === 'inicio' && (S.ajustes.verEn === 'US$' || S.ajustes.verEn === 'C$') ? S.ajustes.verEn : null;
   try{ $('#main').innerHTML = vistas[tab](); } finally { monVista = null; }
   if(tab === 'movs') llenarLista();
@@ -1589,7 +1591,7 @@ const nombreAyu = id => (S.ayudantes.find(a => a.id === id) || {}).nombre || 'ay
 function archivoAcceso(a){   // lo que se le manda a la ayudante: solo productos, paquetes y precios (sin costos ni nada mas)
   return {app: 'mis-gastos', tipo: 'ayudante-acceso', version: 1, ayudanteId: a.id, nombre: a.nombre, cuenta: a.cuenta, letra: a.letra,
     dueno: String(S.ajustes.reciboNombre || '').trim() || 'Jesser', moneda: monBase(), tasa: tasa(), avisoDias: diasAviso(), creado: new Date().toISOString(),
-    productos: S.productos.map(p => ({id: p.id, nombre: p.nombre, mon: monOk(p.mon), costo: 0, stock: 0, paquetes: (p.paquetes || []).map(k => ({id: k.id, n: k.n, cred: k.cred, precio: k.precio, meses: k.meses || 1}))}))};
+    productos: S.productos.map(p => ({id: p.id, nombre: p.nombre, mon: monOk(p.mon), costo: 0, stock: Math.round(+p.stock || 0), paquetes: (p.paquetes || []).map(k => ({id: k.id, n: k.n, cred: k.cred, precio: k.precio, meses: k.meses || 1}))}))};
 }
 async function enviarAcceso(a){
   const ok = await compartirODescargar(new Blob([JSON.stringify(archivoAcceso(a))], {type: 'application/json'}), 'acceso-' + norm(a.nombre).replace(/[^a-z0-9]+/g, '-') + '.json');
@@ -1679,7 +1681,7 @@ async function activarAyudante(d, estado){   // telefono de la ayudante: queda e
   const cfg = {ayudanteId: String(d.ayudanteId), nombre: String(d.nombre || '').slice(0, 40), cuenta: String(d.cuenta || '').slice(0, 60), letra: String(d.letra || 'A').slice(0, 3),
     dueno: String(d.dueno || 'Jesser').slice(0, 40), enviado: AYU ? AYU.enviado : '', nube: d.nube || (AYU && AYU.nube) || null};
   localStorage.setItem(AYU_KEY, JSON.stringify(cfg));
-  const prods = (Array.isArray(d.productos) ? d.productos : []).map(limpiarProd).filter(Boolean).map(p => Object.assign(p, {costo: 0, stock: 0}));
+  const prods = (Array.isArray(d.productos) ? d.productos : []).map(limpiarProd).filter(Boolean).map(p => Object.assign(p, {costo: 0}));
   S.productos = prods; S.ajustes.reciboNombre = cfg.dueno; if(typeof d.moneda === 'string') S.ajustes.moneda = d.moneda.slice(0, 5);
   if(+d.tasa > 0) S.ajustes.tasa = +d.tasa; if([3, 5, 7].includes(+d.avisoDias)) S.ajustes.avisoDias = +d.avisoDias;
   if(estado){   // lo que ya tenia en la nube (otro telefono o se borro este)
@@ -1714,6 +1716,32 @@ function vAyudante(){
   if(bajas.length) h += `<details class="card bajas"><summary><b>No renovaron</b> <small>${bajas.length}</small></summary>${bajas.map(c => filaCli(c, false)).join('')}</details>`;
   return h;
 }
+function paquetesVendidos(ventas){   // cuantos de cada paquete (y sueltos) en esas ventas
+  const porPaq = {};
+  ventas.filter(v => v.tipo !== 'creditos').forEach(v => itemsDe(v).forEach(i => { if(!i.paq) return; const o = porPaq[i.paq] = porPaq[i.paq] || {n: 0, cred: 0}; o.n += +i.cant || 0; o.cred += (+i.cred || 0) * (+i.cant || 0); }));
+  const sueltas = ventas.filter(v => v.tipo === 'creditos');
+  return {porPaq, nSueltas: sueltas.length, credSueltos: sueltas.reduce((a,v) => a + (+v.cant || 0), 0)};
+}
+function vInicioAyu(){
+  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), pv = paquetesVendidos(mes);
+  const vendido = mes.reduce((a,v) => a + enB(totalVenta(v), v.mon), 0), cobrado = mes.reduce((a,v) => a + enB(pagadoV(v), v.mon), 0);
+  const fia = teDebenFiado(), nFia = S.ventas.filter(v => pendienteV(v) > 0).length, pr = porRenovar();
+  const credUsados = mes.reduce((a,v) => a + (+v.cant || 0), 0);
+  let h = `<section class="card"><div class="lbl">🛒 Vendido en ${nombreMes(ym)}</div><div class="big">${fmt(vendido)}</div>
+    <div class="split"><span>💵 Cobrado <b class="pos">${fmt(cobrado)}</b></span><span>📝 Por cobrar (crédito) <b class="${fia > 0 ? 'rojo' : ''}">${fmt(fia)}</b></span></div>
+    <div class="split" style="margin-top:6px"><span>${plural(mes.length, 'venta', 'ventas')}</span><span>💳 ${plural(credUsados, 'crédito usado', 'créditos usados')}</span><span>🏦 ${esc(AYU.cuenta)}</span></div>
+    ${AYU.nube ? nubeAyuHtml() : ''}</section>
+  <div class="neg-btns"><button class="btn primary" data-act="nCli">👤 Cliente nuevo</button><button class="btn" data-act="nVCred">💳 Vender créditos</button></div>`;
+  if(S.productos.length) h += `<section class="card"><h3>💳 Créditos disponibles <small>del negocio, se actualiza solo</small></h3><div class="disp">${S.productos.map(p =>
+      `<div class="pm"><span><b>${esc(p.nombre)}</b><small>Se pueden vender: ${(p.paquetes || []).map(k => esc(k.n) + ' ' + Math.floor(Math.max(0, +p.stock || 0) / (k.cred || 1))).join(' · ')}</small></span><span class="pm-n"><b class="${(+p.stock || 0) <= 5 ? 'rojo' : ''}">${Math.round(+p.stock || 0)}</b><small>créditos</small></span></div>`).join('')}</div>
+    <button class="link" style="margin:8px 0 0" data-act="tab" data-tab="creditos">Ver cada paquete ›</button></section>`;
+  if(nFia) h += `<button class="card ing-add" data-act="tab" data-tab="fiado"><span>📝</span><span><b>${plural(nFia, 'venta al crédito', 'ventas al crédito')} por cobrar: ${fmt(fia)}</b><small>toca para ver quién debe y anotar cuando pague</small></span></button>`;
+  if(pr.length) h += `<section class="card"><h3>⏰ Por renovar <small>${pr.length}</small></h3>${pr.slice(0, 5).map(c => filaCli(c, true)).join('')}${pr.length > 5 ? `<button class="link" style="margin:6px 0 0" data-act="tab" data-tab="negocio">Ver los ${pr.length} ›</button>` : ''}</section>`;
+  const ult = S.ventas.slice().sort(ordenG).slice(0, 5);
+  if(ult.length) h += `<section class="card"><h3>Últimos cobros <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Clientes ›</button></h3><div class="list">${ult.map(itemVenta).join('')}</div></section>`;
+  if(!S.clientes.length && !S.ventas.length) h += `<div class="card empty"><div class="e">👋</div>Bienvenida. Toca <b>👤 Cliente nuevo</b> para anotar un cliente y su pago, o <b>💳 Vender créditos</b>. Todo le llega solo a ${esc(AYU.dueno)}.</div>`;
+  return h;
+}
 function vFiadoAyu(){
   const pend = S.ventas.filter(v => pendienteV(v) > 0).sort((a,b) => (a.promesa || a.fecha) < (b.promesa || b.fecha) ? -1 : 1);
   const pagados = S.ventas.filter(v => v.fiado && pendienteV(v) <= 0).sort(ordenG).slice(0, 15), tot = teDebenFiado();
@@ -1735,14 +1763,15 @@ function vCreditosAyu(){   // la ayudante: cuanto vendio de cada paquete y de cr
     o.n += +i.cant || 0; o.cred += (+i.cred || 0) * (+i.cant || 0); o.total += enB((+i.precio || 0) * (+i.cant || 0), v.mon); }));
   const credPaq = Object.values(porPaq).reduce((a,o) => a + o.cred, 0), credSuel = sueltas.reduce((a,v) => a + (+v.cant || 0), 0);
   const vendido = mes.reduce((a,v) => a + enB(totalVenta(v), v.mon), 0), cobrado = mes.reduce((a,v) => a + enB(pagadoV(v), v.mon), 0);
-  let h = `<section class="card"><div class="lbl">💳 Créditos usados en ${nombreMes(ym)}</div><div class="big">${plural(credPaq + credSuel, 'crédito', 'créditos')}</div>
-    <div class="split"><span>📦 En paquetes <b>${credPaq}</b></span><span>💳 Sueltos <b>${credSuel}</b></span></div>
+  const dispTot = S.productos.reduce((a,p) => a + Math.max(0, Math.round(+p.stock || 0)), 0);
+  let h = `<section class="card"><div class="lbl">💳 Créditos disponibles</div><div class="big ${dispTot <= 5 ? 'neg' : ''}">${plural(dispTot, 'crédito', 'créditos')}</div>
+    <div class="split"><span>Usados en ${MESES[+ym.slice(5) - 1]}: <b>${credPaq + credSuel}</b> (${credPaq} en paquetes, ${credSuel} sueltos)</span></div>
     <div class="split" style="margin-top:6px"><span>🛒 Vendido <b>${fmt(vendido)}</b></span><span>💵 Cobrado <b>${fmt(cobrado)}</b></span><span>🏦 En <b>${esc(AYU.cuenta)}</b></span></div></section>`;
-  h += `<section class="card"><h3>Paquetes este mes</h3>${S.productos.map(p => `${S.productos.length > 1 ? `<div class="cats-t" style="margin:6px 0 2px">${esc(p.nombre)}</div>` : ''}<div class="paq-mes">${(p.paquetes || []).map(k => {
+  h += `<section class="card"><h3>Paquetes <small>disponibles con los créditos que hay</small></h3>${S.productos.map(p => `${S.productos.length > 1 ? `<div class="cats-t" style="margin:6px 0 2px">${esc(p.nombre)}</div>` : ''}<div class="paq-mes">${(p.paquetes || []).map(k => {
       const o = porPaq[k.id] || {n: 0, cred: 0, total: 0};
-      return `<div class="pm"><span><b>${esc(k.n)}</b><small>${plural(k.cred, 'crédito', 'créditos')} · ${fmtEn(k.precio, monOk(p.mon))}${(k.meses || 1) > 1 ? ' · ' + k.meses + ' meses' : ''}</small></span><span class="pm-n"><b>${o.n}</b><small>${o.n === 1 ? 'vendido' : 'vendidos'}</small></span><span class="pm-n"><b>${o.cred}</b><small>créditos</small></span></div>`; }).join('')}</div>`).join('')
+      return `<div class="pm"><span><b>${esc(k.n)}</b><small>${plural(k.cred, 'crédito', 'créditos')} · ${fmtEn(k.precio, monOk(p.mon))}${(k.meses || 1) > 1 ? ' · ' + k.meses + ' meses' : ''}</small></span><span class="pm-n"><b class="${Math.floor(Math.max(0, +p.stock || 0) / (k.cred || 1)) <= 1 ? 'rojo' : 'pos'}">${Math.floor(Math.max(0, +p.stock || 0) / (k.cred || 1))}</b><small>disponibles</small></span><span class="pm-n"><b>${o.n}</b><small>${o.n === 1 ? 'vendido' : 'vendidos'}</small></span></div>`; }).join('')}</div>`).join('')
     || '<p class="hint" style="margin:0">Aún no hay paquetes.</p>'}
-    <div class="pm tot"><span><b>Créditos sueltos</b><small>vendidos con «Vender créditos»</small></span><span class="pm-n"><b>${sueltas.length}</b><small>${sueltas.length === 1 ? 'venta' : 'ventas'}</small></span><span class="pm-n"><b>${credSuel}</b><small>créditos</small></span></div></section>
+    <div class="pm tot"><span><b>Créditos sueltos</b><small>vendidos con «Vender créditos» este mes</small></span><span class="pm-n"><b>${dispTot}</b><small>disponibles</small></span><span class="pm-n"><b>${credSuel}</b><small>vendidos</small></span></div></section>
   <button class="btn primary" data-act="nVCred" style="margin:0 0 12px">💳 Vender créditos</button>`;
   if(sueltas.length) h += `<section class="card"><h3>Ventas de créditos sueltos del mes <small>${sueltas.length}</small></h3><div class="list">${sueltas.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
   const antes = S.ventas.filter(v => v.tipo === 'creditos' && !v.fecha.startsWith(ym)).sort(ordenG).slice(0, 20);
@@ -1855,7 +1884,7 @@ function abrirLoginNube(modo){
 }
 async function subirCatalogo(forzar){
   if(AYU || !S.ajustes.nube) return;
-  const cat = limpioFs({productos: S.productos.map(p => ({id: p.id, nombre: p.nombre, mon: monOk(p.mon), paquetes: (p.paquetes || []).map(k => ({id: k.id, n: k.n, cred: k.cred, precio: k.precio, meses: k.meses || 1}))})),
+  const cat = limpioFs({productos: S.productos.map(p => ({id: p.id, nombre: p.nombre, mon: monOk(p.mon), stock: Math.round(+p.stock || 0), paquetes: (p.paquetes || []).map(k => ({id: k.id, n: k.n, cred: k.cred, precio: k.precio, meses: k.meses || 1}))})),
     dueno: String(S.ajustes.reciboNombre || '').trim() || 'Jesser', moneda: monBase(), tasa: tasa(), avisoDias: diasAviso()});
   const firma = JSON.stringify(cat); if(!forzar && firma === catalogoSubido) return;
   const u = await usuarioFb(); if(!u) return;
@@ -1890,6 +1919,8 @@ async function escucharClientesDueno(){   // ayudante: en vivo, los clientes del
   if(!AYU || !AYU.nube) return;
   if(escuchaCli) escuchaCli();
   const {db} = await cargarFirebase();
+  if(window.__escCat) window.__escCat();
+  window.__escCat = db.doc(`duenos/${AYU.nube.dueno}/catalogo/actual`).onSnapshot(() => { refrescarCatalogoAyu().catch(() => {}); }, () => {});   // creditos y precios en vivo
   escuchaCli = db.doc(`duenos/${AYU.nube.dueno}/catalogo/clientes`).onSnapshot(snap => { if(snap.exists) aplicarClientesDueno(snap.data()); }, e => { nubeAyuMsg = errFb(e); });
 }
 function aplicarClientesDueno(d){
@@ -1964,7 +1995,7 @@ async function entrarComoAyudante(email){
 async function refrescarCatalogoAyu(){   // productos y precios nuevos del dueño
   const {db} = await cargarFirebase();
   const cat = (await db.doc(`duenos/${AYU.nube.dueno}/catalogo/actual`).get()).data(); if(!cat) return;
-  const prods = (cat.productos || []).map(limpiarProd).filter(Boolean).map(p => Object.assign(p, {costo: 0, stock: 0}));
+  const prods = (cat.productos || []).map(limpiarProd).filter(Boolean).map(p => Object.assign(p, {costo: 0}));
   if(JSON.stringify(prods) === JSON.stringify(S.productos)) return;
   S.productos = prods; if(cat.dueno) S.ajustes.reciboNombre = cat.dueno; if(+cat.tasa > 0) S.ajustes.tasa = +cat.tasa;
   save(); if($('#sheetWrap').hidden) render();
@@ -1986,7 +2017,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1613';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261124-1623';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -3690,7 +3721,7 @@ document.addEventListener('click', ev => {
     case 'tab': tab = b.dataset.tab; if(tab !== 'movs'){ filtroCat = null; busqueda = ''; } render(); $('#main').scrollTop = 0; break;
     case 'mesPrev': mes = addYM(mes, -1); render(); break;
     case 'mesSig': if(mes < mesActual()){ mes = addYM(mes, 1); render(); } break;
-    case 'nuevo': tab === 'creditos' ? abrirVentaCred() : tab === 'finanzas' ? abrirMenuFin() : tab === 'negocio' ? (AYU ? abrirCliente(null) : abrirMenuNeg()) : tab === 'fijos' ? abrirFijo(null) : (tab === 'movs' && verMov === 'ingresos' && !filtroCat) ? abrirIngreso(null) : abrirGasto(null); break;
+    case 'nuevo': AYU && tab === 'inicio' ? abrirCliente(null) : tab === 'creditos' ? abrirVentaCred() : tab === 'finanzas' ? abrirMenuFin() : tab === 'negocio' ? (AYU ? abrirCliente(null) : abrirMenuNeg()) : tab === 'fijos' ? abrirFijo(null) : (tab === 'movs' && verMov === 'ingresos' && !filtroCat) ? abrirIngreso(null) : abrirGasto(null); break;
     case 'editG': { const g = S.gastos.find(x => x.id === b.dataset.id); if(g) abrirGasto(g); break; }
     case 'editF': { const f = S.fijos.find(x => x.id === b.dataset.id); if(f) abrirFijo(f); break; }
     case 'editI': { const i = S.ingresos.find(x => x.id === b.dataset.id); if(i) abrirIngreso(i); break; }
@@ -3735,7 +3766,7 @@ document.addEventListener('click', ev => {
     case 'editVenta': { const v = S.ventas.find(x => x.id === b.dataset.id); if(v) abrirVenta(v); break; }
     case 'editCompraN': { const c = S.comprasNeg.find(x => x.id === b.dataset.id); if(c) abrirCompraNeg(c); break; }
     case 'editPrest': { const p = S.prestamos.find(x => x.id === b.dataset.id); if(p) abrirPrest(p); break; }
-    case 'verEn': S.ajustes.verEn = b.dataset.v; save(); render(); break;
+    case 'verEn': S.ajustes.verEn = b.dataset.v; render(); break;
     case 'filtroCat': filtroCat = b.dataset.cat; busqueda = ''; verMov = 'todo'; tab = 'movs'; render(); $('#main').scrollTop = 0; break;
     case 'quitarFiltro': filtroCat = null; render(); break;
     case 'excluir': if(!S.ajustes.excluidos.includes(b.dataset.k)) S.ajustes.excluidos.push(b.dataset.k); save(); render(); toast('Ya no cuenta como hormiga'); break;
