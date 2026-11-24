@@ -453,8 +453,8 @@ textarea.inp{width:100%;resize:vertical;font:inherit;font-size:15px;line-height:
 
 /* modo ayudante (24/11/2026) */
 .tabs button[data-tab="fiado"],.tabs button[data-tab="creditos"]{display:none}
-body.modo-ayu .tabs button[data-tab="fiado"],body.modo-ayu .tabs button[data-tab="creditos"]{display:flex}
-body.modo-ayu .tabs button:not([data-tab="inicio"]):not([data-tab="negocio"]):not([data-tab="fiado"]):not([data-tab="creditos"]):not([data-tab="ajustes"]){display:none}
+body.modo-ayu .tabs button[data-tab="creditos"]{display:flex}
+body.modo-ayu .tabs button:not([data-tab="inicio"]):not([data-tab="negocio"]):not([data-tab="creditos"]):not([data-tab="ajustes"]){display:none}
 
 
 /* nube (24/11/2026) */
@@ -503,6 +503,14 @@ body.modo-ayu .tabs button:not([data-tab="inicio"]):not([data-tab="negocio"]):no
 .pend-r::after{content:'›';color:var(--muted);margin-left:4px}
 .pend-r span{flex:1;min-width:0}
 .kpis-card .seg.mini button{padding:4px 12px}
+
+/* pantalla llena en Inicio, Movimientos y Fijos (24/11/2026) */
+main#main.lleno{display:flex;flex-direction:column;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+main#main.lleno>*{flex:none}
+main#main.lleno>section.card:last-of-type,main#main.lleno>#lista{flex:1 0 auto;margin-bottom:0}
+main#main.lleno #lista{display:flex;flex-direction:column}
+main#main.lleno #lista>.card:last-of-type{flex:1 0 auto;margin-bottom:0}
+main#main.lleno.con-fab>section.card:last-of-type,main#main.lleno.con-fab #lista>.card:last-of-type{padding-bottom:84px !important}
 </style>
 </head>
 <body>
@@ -810,7 +818,7 @@ function aplicarTema(){
 function render(){
   aplicarTema();
   migrarNegocio();
-  if(AYU && !['inicio', 'negocio', 'fiado', 'creditos', 'ajustes'].includes(tab)) tab = 'inicio';
+  if(AYU && !['inicio', 'negocio', 'creditos', 'ajustes'].includes(tab)) tab = 'inicio';
   if(!AYU && (tab === 'fiado' || tab === 'creditos')) tab = 'negocio';
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   const conMes = !AYU && (tab === 'inicio' || tab === 'movs');
@@ -821,6 +829,8 @@ function render(){
   $('#mesLabel').textContent = nombreMes(mes);
   $('#mesSig').disabled = mes >= mesActual();
   $('#fab').hidden = tab === 'ajustes' || tab === 'fiado' || tab === 'inicio';   // sin circulo + en Inicio (dueño y ayudante)
+  $('#main').classList.toggle('lleno', ['inicio', 'movs', 'fijos', 'negocio', 'creditos'].includes(tab));   // la ultima tarjeta llega hasta abajo
+  $('#main').classList.toggle('con-fab', !$('#fab').hidden);
   const vistas = {inicio:AYU ? vInicioAyu : vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, fiado:vFiadoAyu, creditos:vCreditosAyu, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
   monVista = tab === 'inicio' && (S.ajustes.verEn === 'US$' || S.ajustes.verEn === 'C$') ? S.ajustes.verEn : null;
   try{ $('#main').innerHTML = vistas[tab](); } finally { monVista = null; }
@@ -1743,6 +1753,7 @@ function vAyudante(){
   <div class="neg-btns"><button class="btn primary" data-act="nCli">👤 Cliente nuevo</button><button class="btn" data-act="ayuEnviar">📤 Enviar a ${esc(AYU.dueno)}</button></div>`;
   if(S.clientes.length > 3) h += `<input class="inp search" id="buscarCli" type="search" placeholder="🔍 Buscar cliente (nombre o teléfono)" autocomplete="off">`;
   if(pr.length) h += `<section class="card"><h3>Por renovar <small>vencidos o vencen en ${diasAviso()} días</small></h3>${pr.map(c => filaCli(c, true)).join('')}</section>`;
+  h += fiadoSeccionAyu();   // el fiado va aqui mismo, en Clientes
   const resto = S.clientes.filter(c => estadoCli(c) !== 'baja' && !pr.includes(c)).sort((a,b) => norm(a.nombre) < norm(b.nombre) ? -1 : 1);
   if(resto.length) h += `<section class="card"><h3>Clientes <small>${resto.length}</small></h3>${resto.map(c => filaCli(c, false)).join('')}</section>`;
   if(!S.clientes.length) h += `<div class="card empty"><div class="e">👤</div>Toca <b>👤 Cliente nuevo</b>: nombre, su paquete y lo que te pagó. Cuando le toque renovar te sale en «Por renovar». Al terminar el día toca <b>📤 Enviar a ${esc(AYU.dueno)}</b> y mándale el archivo.</div>`;
@@ -1772,18 +1783,25 @@ function vInicioAyu(){   // compacto: 6 cuadritos tocables, una linea de monedas
     <div class="kpis k3">
       <button class="kpi" data-act="tab" data-tab="negocio"><small>🛒 Vendido</small><b>${fmt(r.vendido)}</b></button>
       <button class="kpi" data-act="tab" data-tab="negocio"><small>💵 Cobrado</small><b class="pos">${fmt(r.cobrado)}</b></button>
-      <button class="kpi" data-act="tab" data-tab="fiado"><small>📝 Por cobrar</small><b class="${fia > 0 ? 'rojo' : ''}">${fmt(fia)}</b></button>
+      <button class="kpi" data-act="tab" data-tab="negocio"><small>📝 Por cobrar</small><b class="${fia > 0 ? 'rojo' : ''}">${fmt(fia)}</b></button>
       <button class="kpi" data-act="tab" data-tab="creditos"><small>💰 Ganancia</small><b class="${r.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(r.ganancia)}</b></button>
       <button class="kpi" data-act="tab" data-tab="creditos"><small>💳 Créditos</small><b class="${disp <= 5 ? 'rojo' : ''}">${disp}</b></button>
       <button class="kpi" data-act="tab" data-tab="negocio"><small>👥 Clientes</small><b>${activos}</b></button>
     </div>
     <div class="kpis-pie">C$ ${fmtEn(r.enC, 'C$').replace('C$ ', '')} · $ ${fmtEn(r.enU, 'US$').replace('$ ', '')} · total generado <b>${fmt(rt.vendido)}</b> (ganancia ${fmt(rt.ganancia)})</div>
-    ${AYU.nube ? nubeAyuHtml() : ''}</section>
-  <div class="neg-btns"><button class="btn primary" data-act="nCli">👤 Cliente nuevo</button><button class="btn" data-act="nVCred">💳 Vender créditos</button></div>`;
+    ${AYU.nube ? nubeAyuHtml() : ''}</section>`;
   if(pr.length) h += `<section class="card"><h3>⏰ Por renovar <small>${pr.length}</small>${pr.length > 3 ? ' <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Ver todos</button>' : ''}</h3>${pr.slice(0, 3).map(c => filaCli(c, true)).join('')}</section>`;
-  const ult = S.ventas.slice().sort(ordenG).slice(0, 3);
+  const ult = S.ventas.slice().sort(ordenG).slice(0, 6);
   if(ult.length) h += `<section class="card"><h3>Últimos cobros <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Ver</button></h3><div class="list">${ult.map(itemVenta).join('')}</div></section>`;
   return h;
+}
+function fiadoSeccionAyu(){
+  const pend = S.ventas.filter(v => pendienteV(v) > 0).sort((a,b) => (a.promesa || a.fecha) < (b.promesa || b.fecha) ? -1 : 1);
+  if(!pend.length) return '';
+  return `<section class="card"><h3>📝 Fiado <small>${fmt(teDebenFiado())}</small></h3><div class="fiados">${pend.map(v => {
+    const vence = v.promesa ? diasHasta(v.promesa) : null;
+    return `<div class="fia"><span><b>${esc(v.cliente || v.nom)}</b> · ${fechaCorta(v.fecha)}<br><small>${esc(v.paqN || v.nom)}${v.promesa ? ' · pagará el ' + fechaCorta(v.promesa) + (vence < 0 ? ' (atrasado)' : '') : ''}${v.nota ? '<br>' + esc(v.nota) : ''}</small></span>
+      <b>${fmtEn(pendienteV(v), monOk(v.mon))}</b><button type="button" class="btn small primary" data-act="pagoFiado" data-id="${v.id}">💵 Pagó</button></div>`; }).join('')}</div></section>`;
 }
 function vFiadoAyu(){
   const pend = S.ventas.filter(v => pendienteV(v) > 0).sort((a,b) => (a.promesa || a.fecha) < (b.promesa || b.fecha) ? -1 : 1);
@@ -2059,7 +2077,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1702';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261124-1729';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -2150,8 +2168,6 @@ function vInicio(){   // compacto: cuadritos, pendientes, categorias y ultimas c
       return `<button class="barrow${lim ? (pl > 1 ? ' over' : pl >= 0.8 ? ' near' : '') : ''}" data-act="filtroCat" data-cat="${id}"><span class="bl">${c.e} ${esc(c.n)}</span><span class="bv">${fmt(v)}<small>${lim ? 'de ' + fmt(lim) : Math.round(v / (total || 1) * 100) + '%'}</small></span>
         <span class="bt"><i style="width:${Math.max(2, lim ? Math.min(100, pl * 100) : v / max * 100)}%"></i></span></button>`; }).join('')}</div></section>`;
   }
-  const ult = gs.slice().sort(ordenG).slice(0, 3);
-  if(ult.length) h += `<section class="card"><h3>Últimas compras <button class="link" style="margin:0" data-act="tab" data-tab="movs">Ver todas</button></h3><div class="list">${ult.map(itemG).join('')}</div></section>`;
   return h;
 }
 
