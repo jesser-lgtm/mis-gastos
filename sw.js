@@ -25,6 +25,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  if (url.searchParams.has('chk')) return;   // la revision de version nueva va directo a GitHub, sin guardarse
 
   if (req.mode === 'navigate') {
     e.respondWith(

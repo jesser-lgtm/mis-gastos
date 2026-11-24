@@ -460,6 +460,11 @@ body.modo-ayu .tabs button:not([data-tab="negocio"]):not([data-tab="fiado"]):not
 /* nube (24/11/2026) */
 .nube{background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:8px}
 .nube small{color:var(--ink2)}
+
+/* aviso de version nueva (24/11/2026) */
+.act-banner{position:fixed;left:12px;right:12px;top:calc(68px + env(safe-area-inset-top));z-index:9;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--accent);color:var(--on-accent);border-radius:14px;padding:10px 10px 10px 14px;font-weight:650;font-size:14.5px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.act-banner button{border:0;border-radius:10px;padding:9px 14px;font-weight:800;font-size:14px;background:var(--on-accent);color:var(--accent);flex:none}
 </style>
 </head>
 <body>
@@ -475,6 +480,7 @@ body.modo-ayu .tabs button:not([data-tab="negocio"]):not([data-tab="fiado"]):not
   </div>
 </header>
 
+<div class="act-banner" id="actBanner" hidden><span>🔄 Hay una versión nueva de la app</span><button type="button" id="actBtn">Actualizar</button></div>
 <main id="main"></main>
 
 <button class="fab" id="fab" data-act="nuevo" aria-label="Agregar">+</button>
@@ -1731,6 +1737,7 @@ function vAjustesAyu(){
     <p class="hint" style="margin-top:0">Eres ayudante de <b>${esc(AYU.dueno)}</b>. Cobras en <b>${esc(AYU.cuenta)}</b>. ${AYU.nube ? 'Lo que anotas le llega solo (☁️ entraste como ' + esc(AYU.nube.email) + '). El botón de abajo manda además las fotos de los pagos.' : 'Lo que anotas se queda en este teléfono hasta que lo envías.'}</p>
     <button class="btn primary" data-act="ayuEnviar">📤 Enviar mis clientes y cobros a ${esc(AYU.dueno)}</button>
     <button class="btn" data-act="importar">🔄 Cargar acceso nuevo (productos y precios)</button></section>
+  ${actHtml()}
   ${pinHtml()}
   <section class="card"><div class="setrow"><label>Modo día / noche</label><select class="inp" data-set="tema">
       <option value="auto"${a.tema === 'auto' ? ' selected' : ''}>Como el teléfono</option><option value="light"${a.tema === 'light' ? ' selected' : ''}>Día</option><option value="dark"${a.tema === 'dark' ? ' selected' : ''}>Noche</option></select></div>
@@ -1959,6 +1966,25 @@ async function subirEstadoAyu(){
   if(tab === 'negocio' && $('#sheetWrap').hidden) render();
 }
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
+
+/* ================= Actualizar la app (24/11/2026) ================= */
+const APP_VERSION = '20261124-1600';   // publicar.sh la cambia en cada subida
+let ultimaRevision = 0;
+async function buscarActualizacion(avisar){
+  ultimaRevision = Date.now();
+  try{
+    const r = await fetch(location.pathname + '?chk=' + Date.now(), {cache: 'no-store'});
+    if(!r.ok) throw new Error('http ' + r.status);
+    const m = (await r.text()).match(/const APP_VERSION = '([^']+)'/);
+    const nueva = m && m[1] !== APP_VERSION;
+    $('#actBanner').hidden = !nueva;
+    if(avisar) toast(nueva ? '🔄 Hay una versión nueva: toca «Actualizar» arriba' : '✓ Ya tienes la versión más nueva');
+  }catch(e){ if(avisar) toast('Sin internet: no se pudo revisar'); }
+}
+$('#actBtn').onclick = () => { $('#actBtn').textContent = 'Actualizando…'; location.reload(); };
+document.addEventListener('visibilitychange', () => { if(!document.hidden && Date.now() - ultimaRevision > 30000) buscarActualizacion(); });
+setInterval(() => { if(!document.hidden) buscarActualizacion(); }, 600000);
+const actHtml = () => `<section class="card"><div class="split"><span>📲 Versión <b>${esc(APP_VERSION)}</b></span></div><button class="btn" data-act="buscarAct">🔄 Buscar actualización</button></section>`;
 
 /* ================= Vistas ================= */
 function avisos(){
@@ -2353,6 +2379,7 @@ function vAjustes(){
   </section>
   ${tarjetasHtml()}
   ${ayudantesHtml()}
+  ${actHtml()}
   ${pinHtml()}
   ${ES_SERVIDOR ? `<section class="card"><h3>Cuenta</h3>
     <a class="btn" href="/cuenta">🔑 Cambiar usuario o contraseña</a>
@@ -3658,6 +3685,7 @@ document.addEventListener('click', ev => {
     case 'nAyu': abrirAyudante(null); break;
     case 'editAyu': { const a = S.ayudantes.find(x => x.id === b.dataset.id); if(a) abrirAyudante(a); break; }
     case 'ayuEnviar': enviarAlDueno(); break;
+    case 'buscarAct': buscarActualizacion(true); break;
     case 'pagoFiado': { const v = S.ventas.find(x => x.id === b.dataset.id); if(v) abrirPagoVenta(v); break; }
     case 'ayuEntrar': abrirLoginNube('ayudante'); break;
     case 'nubeConectar': abrirLoginNube('dueno'); break;
@@ -3742,6 +3770,7 @@ render();
 bloquear();
 setTimeout(limpiarFotosSueltas, 4000);
 setTimeout(iniciarNube, 1200);
+setTimeout(buscarActualizacion, 3000);
 
 if('serviceWorker' in navigator){
   const habiaSW = !!navigator.serviceWorker.controller;   // si llega una version nueva, recarga una vez sola
