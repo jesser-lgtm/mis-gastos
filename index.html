@@ -482,6 +482,27 @@ body.modo-ayu .tabs button:not([data-tab="inicio"]):not([data-tab="negocio"]):no
 
 /* sin explicaciones (24/11/2026) */
 .hint,.foot,.guia,.card.empty,.proy small,.setrow label small,.f-tit small,.mini b,.ing-add small,.exp{display:none!important}
+
+/* inicio compacto (24/11/2026) */
+.kpis-card{padding:12px}
+.kpis-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 2px 8px;font-size:13px;font-weight:650;color:var(--ink2)}
+.kpis-top>span:first-child{text-transform:capitalize}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kpis.k3{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.kpi{background:var(--track);border:0;border-radius:12px;padding:9px 10px;text-align:left;color:inherit;font:inherit;min-width:0}
+.kpi small{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi b{display:block;font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.kpis.k3 .kpi{padding:8px}
+.kpis.k3 .kpi b{font-size:15px}
+.kpi b.amar{color:var(--warn)}
+.kpis-pie{font-size:12.5px;color:var(--ink2);margin:8px 2px 0}
+.pend{display:grid}
+.pend-r{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;font:inherit;font-size:14px;padding:9px 2px;text-align:left}
+.pend-r:last-child{border-bottom:0}
+.pend-r b{white-space:nowrap}
+.pend-r::after{content:'›';color:var(--muted);margin-left:4px}
+.pend-r span{flex:1;min-width:0}
+.kpis-card .seg.mini button{padding:4px 12px}
 </style>
 </head>
 <body>
@@ -1743,30 +1764,25 @@ function resumenMesAyu(mes){
   r.ganancia = r.vendido - r.costo;
   return r;
 }
-function vInicioAyu(){
+function vInicioAyu(){   // compacto: 6 cuadritos tocables, una linea de monedas y total, botones, por renovar y ultimos cobros
   const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), r = resumenMesAyu(mes), rt = resumenMesAyu(S.ventas);
-  const fia = teDebenFiado(), nFia = S.ventas.filter(v => pendienteV(v) > 0).length, pr = porRenovar();
-  const iniMes = parseD(ym + '-01').getTime(), activos = S.clientes.filter(c => estadoCli(c) !== 'baja').length;
-  const nuevos = S.clientes.filter(c => (c.creado || 0) >= iniMes).length, bajas = S.clientes.filter(c => estadoCli(c) === 'baja').length;
-  let h = `<section class="card"><div class="lbl">🛒 Vendido en ${nombreMes(ym)}</div><div class="big">${fmt(r.vendido)}</div>
-    <div class="split"><span>En córdobas <b>${fmtEn(r.enC, 'C$')}</b></span><span>💵 En dólares <b>${fmtEn(r.enU, 'US$')}</b></span></div>
-    <div class="split" style="margin-top:6px"><span>💵 Cobrado <b class="pos">${fmt(r.cobrado)}</b></span><span>📝 Por cobrar (crédito) <b class="${fia > 0 ? 'rojo' : ''}">${fmt(fia)}</b></span></div>
-    <div class="split" style="margin-top:6px"><span>💳 ${plural(r.cred, 'crédito usado', 'créditos usados')} · costo <b>${fmt(r.costo)}</b></span><span>💰 Ganancia <b class="${r.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(r.ganancia)}</b></span></div>
+  const fia = teDebenFiado(), pr = porRenovar(), activos = S.clientes.filter(c => estadoCli(c) !== 'baja').length;
+  const disp = S.productos.reduce((a,p) => a + Math.max(0, stockVer(p)), 0);
+  let h = `<section class="card kpis-card"><div class="kpis-top"><span>${nombreMes(ym)}</span><span>🏦 ${esc(AYU.cuenta)}</span></div>
+    <div class="kpis k3">
+      <button class="kpi" data-act="tab" data-tab="negocio"><small>🛒 Vendido</small><b>${fmt(r.vendido)}</b></button>
+      <button class="kpi" data-act="tab" data-tab="negocio"><small>💵 Cobrado</small><b class="pos">${fmt(r.cobrado)}</b></button>
+      <button class="kpi" data-act="tab" data-tab="fiado"><small>📝 Por cobrar</small><b class="${fia > 0 ? 'rojo' : ''}">${fmt(fia)}</b></button>
+      <button class="kpi" data-act="tab" data-tab="creditos"><small>💰 Ganancia</small><b class="${r.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(r.ganancia)}</b></button>
+      <button class="kpi" data-act="tab" data-tab="creditos"><small>💳 Créditos</small><b class="${disp <= 5 ? 'rojo' : ''}">${disp}</b></button>
+      <button class="kpi" data-act="tab" data-tab="negocio"><small>👥 Clientes</small><b>${activos}</b></button>
+    </div>
+    <div class="kpis-pie">C$ ${fmtEn(r.enC, 'C$').replace('C$ ', '')} · $ ${fmtEn(r.enU, 'US$').replace('$ ', '')} · total generado <b>${fmt(rt.vendido)}</b> (ganancia ${fmt(rt.ganancia)})</div>
     ${AYU.nube ? nubeAyuHtml() : ''}</section>
-  <section class="card"><div class="lbl">📈 Total generado</div><div class="big">${fmt(rt.vendido)}</div>
-    <div class="split"><span>En córdobas <b>${fmtEn(rt.enC, 'C$')}</b></span><span>💵 En dólares <b>${fmtEn(rt.enU, 'US$')}</b></span></div>
-    <div class="split" style="margin-top:6px"><span>💵 Cobrado <b class="pos">${fmt(rt.cobrado)}</b></span><span>💳 Costo <b>${fmt(rt.costo)}</b></span><span>💰 Ganancia <b class="${rt.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(rt.ganancia)}</b></span></div></section>
-  <section class="card"><h3>👥 Clientes <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Ver ›</button></h3>
-    <div class="cli-num"><div><b>${activos}</b><small>activos</small></div><div><b>${nuevos}</b><small>nuevos este mes</small></div><div><b class="${pr.length ? 'rojo' : ''}">${pr.length}</b><small>por renovar</small></div><div><b>${bajas}</b><small>no renovaron</small></div></div></section>
   <div class="neg-btns"><button class="btn primary" data-act="nCli">👤 Cliente nuevo</button><button class="btn" data-act="nVCred">💳 Vender créditos</button></div>`;
-  if(S.productos.length) h += `<section class="card"><h3>💳 Créditos disponibles <small>del negocio, se actualiza solo</small></h3><div class="disp">${S.productos.map(p =>
-      `<div class="pm"><span><b>${esc(p.nombre)}</b><small>Costo por crédito ${fmtEn(+p.costo || 0, monOk(p.mon))}<br>Se pueden vender: ${(p.paquetes || []).map(k => esc(k.n) + ' ' + Math.floor(Math.max(0, stockVer(p)) / (k.cred || 1))).join(' · ')}</small></span><span class="pm-n"><b class="${stockVer(p) <= 5 ? 'rojo' : ''}">${stockVer(p)}</b><small>créditos</small></span></div>`).join('')}</div>
-    <button class="link" style="margin:8px 0 0" data-act="tab" data-tab="creditos">Ver cada paquete ›</button></section>`;
-  if(nFia) h += `<button class="card ing-add" data-act="tab" data-tab="fiado"><span>📝</span><span><b>${plural(nFia, 'venta al crédito', 'ventas al crédito')} por cobrar: ${fmt(fia)}</b><small>toca para ver quién debe y anotar cuando pague</small></span></button>`;
-  if(pr.length) h += `<section class="card"><h3>⏰ Por renovar <small>${pr.length}</small></h3>${pr.slice(0, 5).map(c => filaCli(c, true)).join('')}${pr.length > 5 ? `<button class="link" style="margin:6px 0 0" data-act="tab" data-tab="negocio">Ver los ${pr.length} ›</button>` : ''}</section>`;
-  const ult = S.ventas.slice().sort(ordenG).slice(0, 5);
-  if(ult.length) h += `<section class="card"><h3>Últimos cobros <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Clientes ›</button></h3><div class="list">${ult.map(itemVenta).join('')}</div></section>`;
-  if(!S.clientes.length && !S.ventas.length) h += `<div class="card empty"><div class="e">👋</div>Bienvenida. Toca <b>👤 Cliente nuevo</b> para anotar un cliente y su pago, o <b>💳 Vender créditos</b>. Todo le llega solo a ${esc(AYU.dueno)}.</div>`;
+  if(pr.length) h += `<section class="card"><h3>⏰ Por renovar <small>${pr.length}</small>${pr.length > 3 ? ' <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Ver todos</button>' : ''}</h3>${pr.slice(0, 3).map(c => filaCli(c, true)).join('')}</section>`;
+  const ult = S.ventas.slice().sort(ordenG).slice(0, 3);
+  if(ult.length) h += `<section class="card"><h3>Últimos cobros <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Ver</button></h3><div class="list">${ult.map(itemVenta).join('')}</div></section>`;
   return h;
 }
 function vFiadoAyu(){
@@ -2043,7 +2059,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1653';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261124-1702';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -2092,115 +2108,50 @@ function bienvenida(){
   </ol></div>`;
 }
 
-function vInicio(){
-  const gs = gastosMes(mes), tv = sum(gs), tf = totalFijos(mes), total = tv + tf;
-  const cur = mesActual(), [y, m] = mes.split('-').map(Number), dim = diasEnMes(y, m-1);
-  const esCur = mes === cur;
-  const dias = esCur ? new Date().getDate() : (mes < cur ? dim : 0);
-  let h = avisos();
-  if(!S.gastos.length && !S.fijos.length && !S.ingresos.length && !S.ingFijos.length) h += bienvenida();
-
-  // Tarjeta principal
-  let proy = '';
-  if(esCur && dias >= 3 && dias < dim && tv > 0)
-    proy = `<div class="proy">📈 A este ritmo cerrarías el mes en <b>${fmt(tv/dias*dim + tf)}</b></div>`;
-  const vista = monVista || monBase();
-  h += `<section class="card"><div class="lbl lbl-row"><span>Gastado en ${nombreMes(mes)}</span><div class="seg mini">${[monBase(), monOtra()].map(m => `<button type="button" data-act="verEn" data-v="${m}" class="${m === vista ? 'on' : ''}">${esc(sim(m))}</button>`).join('')}</div></div>
-    ${vista !== monBase() ? `<div class="tasa-nota">Todo en ${vista === 'US$' ? 'dólares' : esc(vista)} con la tasa 1 dólar = ${tasa().toFixed(2)} C$</div>` : ''}
-    <div class="big">${fmt(total)}</div>
-    <div class="split"><span>🛍️ Compras <b>${fmt(tv)}</b></span><span>🔁 Fijos <b>${fmt(tf)}</b></span></div>
-    ${proy}${presupuestoHtml(total)}</section>`;
-
-  // Ingresos, negocio y lo que queda (23/11/2026)
-  const iv = sum(ingresosMes(mes)), ifj = totalIngFijos(mes), ti = iv + ifj;
+function vInicio(){   // compacto: cuadritos, pendientes, categorias y ultimas compras
+  const gs = gastosMes(mes), tv = sum(gs), tf = totalFijos(mes), total = tv + tf, esCur = mes === mesActual();
+  const ti = sum(ingresosMes(mes)) + totalIngFijos(mes);
   const nm = negocioMes(mes), conNeg = S.ajustes.negEnQueda !== 'no' && (nm.cobrado > 0 || nm.compras > 0);
-  const queda = ti - total + (conNeg ? nm.cobrado - nm.compras : 0);
-  if(ti > 0 || conNeg)
-    h += `<section class="card"><div class="lbl">Te queda en ${nombreMes(mes)}</div>
-      <div class="big ${queda >= 0 ? 'pos' : 'neg'}">${fmt(queda)}</div>
-      <div class="split"><span>💰 Ingresos <b>${fmt(ti)}</b></span><span>💸 Gastos <b>${fmt(total)}</b></span>${conNeg ? `<span>🏪 Clientes <b>${nm.cobrado - nm.compras >= 0 ? '+' : ''}${fmt(nm.cobrado - nm.compras)}</b></span>` : ''}</div>
-      ${ifj > 0 && iv > 0 ? `<div class="proy">Salario ${fmt(ifj)} + otros ingresos ${fmt(iv)}</div>` : ''}
-      ${conNeg ? `<div class="proy">Clientes: cobrado ${fmt(nm.cobrado)} − créditos comprados ${fmt(nm.compras)}</div>` : ''}</section>`;
-  else h += `<button class="card ing-add" data-act="nuevoIng"><span>💰</span><span><b>Anotar un ingreso</b><small>salario, ventas, un pago que te hicieron… y ves cuánto te queda</small></span></button>`;
-  const deben = teDeben();
-  if(deben > 0)
-    h += `<button class="card ing-add" data-act="tab" data-tab="negocio"><span>🤝</span><span><b>Te deben ${fmt(deben)}</b><small>préstamos que hiciste (aparte, no cuentan como gasto)</small></span></button>`;
-  const nRen = porRenovar().length;
-  if(nRen > 0)
-    h += `<button class="card ing-add" data-act="tab" data-tab="negocio"><span>⏰</span><span><b>${plural(nRen, 'cliente por renovar', 'clientes por renovar')}</b><small>vencidos o vencen en ${diasAviso()} días — toca para decidir</small></span></button>`;
-  const fia = teDebenFiado();
-  if(fia > 0) h += `<button class="card ing-add" data-act="tab" data-tab="negocio"><span>📝</span><span><b>Fiado: te deben ${fmt(fia)}</b><small>ventas que aún no te pagan completas</small></span></button>`;
-
-  // Indicadores
-  const prev = addYM(mes, -1);
-  const corte = esCur ? pad(new Date().getDate()) : '31';
-  const prevComp = sum(gastosMes(prev).filter(g => g.fecha.slice(8) <= corte)) + totalFijos(prev);
-  let delta = '';
-  if(prevComp > 0){
-    const p = Math.round((total - prevComp) / prevComp * 100);
-    delta = `<em class="${p > 0 ? 'up' : 'down'}">${p > 0 ? '▲' : '▼'} ${Math.abs(p)}%</em>`;
-  }
-  const hoyTot = esCur ? sum(S.gastos.filter(g => g.fecha === hoy())) : null;
-  h += `<div class="stats">
-    <div class="stat"><small>Promedio por día</small><b>${fmt(dias ? tv/dias : 0)}</b></div>
-    ${esCur ? `<div class="stat"><small>Hoy</small><b>${fmt(hoyTot)}</b></div>` : `<div class="stat"><small>Compras</small><b>${gs.length}</b></div>`}
-    <div class="stat"><small>${esCur ? 'vs. mismo día mes pasado' : 'vs. mes anterior'}</small><b>${prevComp > 0 ? delta : '—'}</b></div>
-  </div>`;
-
-  // Hormiga
-  const r = ritmoHormiga();
-  if(r && r.total > 0)
-    h += `<button class="card ant" data-act="tab" data-tab="hormiga"><span class="e">🐜</span><span>
-      <span class="lbl">Gastos hormiga a este ritmo</span><br>
-      <b>${fmt(r.mensual)} al mes</b><span class="p">≈ ${fmt(r.anual)} al año · ${r.veces} compras pequeñas en ${r.dias} días</span></span></button>`;
-
-  // Rápido
-  const rap = frecuentes(8);
-  if(rap.length)
-    h += `<section class="card"><h3>Anotar rápido <small>toca y guarda</small></h3><div class="chips">${
-      rap.map(g => `<button class="chip" data-act="rapido" data-id="${g.id}">${cat(g.cat).e} ${esc(g.desc)}<small>${fmtM(g)}</small></button>`).join('')
-    }</div></section>`;
-
-  // Próximos cobros (y los ingresos fijos que vienen)
+  const entra = ti + (conNeg ? nm.cobrado : 0), sale = total + (conNeg ? nm.compras : 0), queda = entra - sale;
+  const p = +S.ajustes.presupuesto, pct = p ? Math.round(total / p * 100) : null, vista = monVista || monBase();
+  let h = avisos();
+  h += `<section class="card kpis-card"><div class="kpis-top" style="justify-content:flex-end;margin-bottom:6px"><div class="seg mini">${[monBase(), monOtra()].map(m => `<button type="button" data-act="verEn" data-v="${m}" class="${m === vista ? 'on' : ''}">${esc(sim(m))}</button>`).join('')}</div></div>
+    <div class="kpis">
+      <button class="kpi" data-act="tab" data-tab="movs"><small>💸 Gastado</small><b>${fmt(sale)}</b></button>
+      <button class="kpi" data-act="tab" data-tab="movs"><small>💰 Ingresos</small><b class="pos">${fmt(entra)}</b></button>
+      <button class="kpi" data-act="tab" data-tab="finanzas"><small>🏦 Te queda</small><b class="${queda >= 0 ? 'pos' : 'rojo'}">${fmt(queda)}</b></button>
+      <button class="kpi" data-act="tab" data-tab="ajustes"><small>🎯 Presupuesto${p ? ' ' + fmt(p) : ''}</small><b class="${pct > 100 ? 'rojo' : pct >= 80 ? 'amar' : ''}">${p ? pct + '%' : '—'}</b></button>
+    </div>${p ? `<div class="pbar ${pct > 100 ? 'bad' : pct >= 80 ? 'warn' : ''}" style="margin-top:8px"><i style="width:${Math.min(pct, 100)}%"></i></div>` : ''}
+    ${vista !== monBase() ? `<div class="kpis-pie">En ${vista === 'US$' ? 'dólares' : esc(vista)} · 1 dólar = ${tasa().toFixed(2)} C$</div>` : ''}</section>`;
+  // Pendientes: una linea por cosa
+  const P = [];
   if(esCur){
-    const prox = S.fijos.filter(f => !f.pausadoDesde).map(f => ({f, d: proximoCobro(f, hoy()), ing: false}))
-      .concat(S.ingFijos.filter(f => !f.pausadoDesde).map(f => ({f, d: proximoCobro(f, hoy()), ing: true})))
-      .filter(x => diasHasta(x.d) <= 7).sort((a,b) => a.d < b.d ? -1 : 1);
-    if(prox.length)
-      h += `<section class="card"><h3>Próximos 7 días <small>cobros y salario</small></h3><div class="list">${
-        prox.map(({f,d,ing}) => `<button class="item${ing ? ' ing' : ''}" data-act="${ing ? 'editIF' : 'editF'}" data-id="${f.id}"><span class="ico">${ing ? icat(f.cat).e : cat(f.cat).e}</span>
-          <span class="txt"><b>${esc(f.nombre)}</b><small>${fechaCorta(d)} · ${cuando(diasHasta(d))}</small></span><span class="amt">${ing ? '+' : ''}${fmtM(f)}${otraMon(f) ? `<small>≈ ${fmt(mB(f))}</small>` : ''}</span></button>`).join('')
-      }</div></section>`;
+    const fia = teDebenFiado(), deb = teDeben(), pr = porRenovar();
+    if(pr.length) P.push(['negocio', '⏰', plural(pr.length, 'cliente por renovar', 'clientes por renovar'), '']);
+    if(fia > 0) P.push(['negocio', '📝', 'Fiado por cobrar', fmt(fia)]);
+    if(deb > 0) P.push(['negocio', '🤝', 'Te deben (préstamos)', fmt(deb)]);
+    const fij = S.fijos.filter(f => !f.pausadoDesde).map(f => ({f, d: proximoCobro(f, hoy())})).filter(x => diasHasta(x.d) <= 7);
+    if(fij.length) P.push(['fijos', '🔁', plural(fij.length, 'cobro fijo', 'cobros fijos') + ' esta semana', fmt(fij.reduce((a,x) => a + mB(x.f), 0))]);
+    const sal = S.ingFijos.filter(f => !f.pausadoDesde).map(f => ({f, d: proximoCobro(f, hoy())})).filter(x => diasHasta(x.d) <= 7);
+    if(sal.length) P.push(['fijos', '💼', 'Salario esta semana', '+' + fmt(sal.reduce((a,x) => a + mB(x.f), 0))]);
+    const pdT = tarCredito().filter(t => t.pago && deudaTar(t) > 0 && diasHasta(proxDia(t.pago)) <= 7), pdD = S.deudas.filter(x => x.dia && saldoDeuda(x) > 0 && diasHasta(proxDia(x.dia)) <= 7);
+    if(pdT.length + pdD.length) P.push(['finanzas', '💳', plural(pdT.length + pdD.length, 'pago de deuda', 'pagos de deudas') + ' esta semana', '']);
+    const r = ritmoHormiga(); if(r && r.total > 0) P.push(['hormiga', '🐜', 'Hormiga al mes', fmt(r.mensual)]);
   }
-
-  // Pagos de deudas que vienen (tarjetas de credito y prestamos)
-  if(esCur){
-    const pd = tarCredito().filter(t => t.pago && deudaTar(t) > 0).map(t => ({t, d: proxDia(t.pago)}))
-      .concat(S.deudas.filter(x => x.dia && saldoDeuda(x) > 0).map(x => ({x, d: proxDia(x.dia)}))).filter(o => diasHasta(o.d) <= 7).sort((a,b) => a.d < b.d ? -1 : 1);
-    if(pd.length)
-      h += `<section class="card"><h3>💳 Pagos de deudas <small>7 días</small></h3><div class="list">${pd.map(o => o.t
-        ? `<button class="item" data-act="editTar" data-id="${o.t.id}"><span class="ico">💳</span><span class="txt"><b>${esc(nomTar(o.t))}</b><small>${fechaCorta(o.d)} · ${cuando(diasHasta(o.d))}</small></span><span class="amt">${fmt(deudaTar(o.t))}<small>debes</small></span></button>`
-        : `<button class="item" data-act="editDeuda" data-id="${o.x.id}"><span class="ico">🧾</span><span class="txt"><b>${esc(o.x.nombre)}</b><small>${fechaCorta(o.d)} · ${cuando(diasHasta(o.d))}</small></span><span class="amt">${fmtEn(+o.x.cuota > 0 ? Math.min(+o.x.cuota, saldoDeuda(o.x)) : saldoDeuda(o.x), monOk(o.x.mon))}<small>${+o.x.cuota > 0 ? 'cuota' : 'debes'}</small></span></button>`).join('')}</div></section>`;
-  }
-
-  // Por categoría
+  if(P.length) h += `<section class="card"><div class="pend">${P.map(([t, e, txt, m]) => `<button class="pend-r" data-act="tab" data-tab="${t}"><span>${e} ${txt}</span><b>${m}</b></button>`).join('')}</div></section>`;
+  // ¿En que se va? (las 5 que mas)
   const porCat = {};
   gs.forEach(g => porCat[g.cat] = (porCat[g.cat] || 0) + mB(g));
   fijosDelMes(mes).forEach(f => porCat[f.cat] = (porCat[f.cat] || 0) + equivMensual(f));
-  const arr = Object.entries(porCat).filter(x => x[1] > 0).sort((a,b) => b[1] - a[1]);
+  const arr = Object.entries(porCat).filter(x => x[1] > 0).sort((a,b) => b[1] - a[1]).slice(0, 5);
   if(arr.length){
     const max = arr[0][1];
-    h += `<section class="card"><h3>¿En qué se va? <small>compras + fijos</small></h3><div class="bars">${
-      arr.map(([id, v]) => { const c = cat(id), lim = limiteCat(id), pl = lim ? v / lim : 0; return `<button class="barrow${lim ? (pl > 1 ? ' over' : pl >= 0.8 ? ' near' : '') : ''}" data-act="filtroCat" data-cat="${id}">
-        <span class="bl">${c.e} ${c.n}</span><span class="bv">${fmt(v)}<small>${lim ? 'de ' + fmt(lim) : Math.round(v/total*100) + '%'}</small></span>
-        <span class="bt"><i style="width:${Math.max(2, lim ? Math.min(100, pl*100) : v/max*100)}%"></i></span></button>`; }).join('')
-    }</div></section>`;
+    h += `<section class="card"><h3>¿En qué se va?</h3><div class="bars">${arr.map(([id, v]) => { const c = cat(id), lim = limiteCat(id), pl = lim ? v / lim : 0;
+      return `<button class="barrow${lim ? (pl > 1 ? ' over' : pl >= 0.8 ? ' near' : '') : ''}" data-act="filtroCat" data-cat="${id}"><span class="bl">${c.e} ${esc(c.n)}</span><span class="bv">${fmt(v)}<small>${lim ? 'de ' + fmt(lim) : Math.round(v / (total || 1) * 100) + '%'}</small></span>
+        <span class="bt"><i style="width:${Math.max(2, lim ? Math.min(100, pl * 100) : v / max * 100)}%"></i></span></button>`; }).join('')}</div></section>`;
   }
-
-  // Últimos
-  const ult = gs.slice().sort(ordenG).slice(0, 5);
-  if(ult.length)
-    h += `<section class="card"><h3>Últimas compras <button class="link" style="margin:0" data-act="tab" data-tab="movs">Ver todas</button></h3><div class="list">${ult.map(itemG).join('')}</div></section>`;
+  const ult = gs.slice().sort(ordenG).slice(0, 3);
+  if(ult.length) h += `<section class="card"><h3>Últimas compras <button class="link" style="margin:0" data-act="tab" data-tab="movs">Ver todas</button></h3><div class="list">${ult.map(itemG).join('')}</div></section>`;
   return h;
 }
 
