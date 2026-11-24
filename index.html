@@ -452,8 +452,10 @@ textarea.inp{width:100%;resize:vertical;font:inherit;font-size:15px;line-height:
 .pin-in{letter-spacing:.4em;font-size:20px}
 
 /* modo ayudante (24/11/2026) */
-body.modo-ayu .tabs button:not([data-tab="negocio"]):not([data-tab="ajustes"]){display:none}
-body.modo-ayu #fVC, body.modo-ayu #fVC2, body.modo-ayu #lVC{display:none}
+.tabs button[data-tab="fiado"],.tabs button[data-tab="creditos"]{display:none}
+body.modo-ayu .tabs button[data-tab="fiado"],body.modo-ayu .tabs button[data-tab="creditos"]{display:flex}
+body.modo-ayu .tabs button:not([data-tab="negocio"]):not([data-tab="fiado"]):not([data-tab="creditos"]):not([data-tab="ajustes"]){display:none}
+
 
 /* nube (24/11/2026) */
 .nube{background:var(--accent-soft);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:8px}
@@ -482,6 +484,8 @@ body.modo-ayu #fVC, body.modo-ayu #fVC2, body.modo-ayu #lVC{display:none}
   <button data-act="tab" data-tab="movs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>Movimientos</button>
   <button data-act="tab" data-tab="fijos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.5 20.5 6 17 9.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5 3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/></svg>Fijos</button>
   <button data-act="tab" data-tab="negocio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.6-3.4 3-5.3 6-5.3s5.4 1.9 6 5.3"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.3c2.4.1 4.1 1.8 4.5 4.7"/></svg>Clientes</button>
+  <button data-act="tab" data-tab="fiado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h10.5a2 2 0 0 1 2 2v15l-3-1.8-3 1.8-3-1.8-3 1.8V5.5a2 2 0 0 1 .5-2"/><path d="M9 8.5h6M9 12h6M9 15.5h3.5"/></svg>Fiado</button>
+  <button data-act="tab" data-tab="creditos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19"/><path d="M6.5 14.5h4"/></svg>Créditos</button>
   <button data-act="tab" data-tab="finanzas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11"/><path d="M10 20V5"/><path d="M16 20v-8"/><path d="M21.5 20h-19"/><path d="M14.5 7.5 17 5l2.5 2.5"/></svg>Finanzas</button>
   <button data-act="tab" data-tab="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h9M18 6h2M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15.5" cy="6" r="2.2"/><circle cx="9" cy="12" r="2.2"/><circle cx="17" cy="18" r="2.2"/></svg>Ajustes</button>
 </nav>
@@ -760,16 +764,17 @@ function aplicarTema(){
 function render(){
   aplicarTema();
   migrarNegocio();
-  if(AYU && !['negocio', 'ajustes'].includes(tab)) tab = 'negocio';
+  if(AYU && !['negocio', 'fiado', 'creditos', 'ajustes'].includes(tab)) tab = 'negocio';
+  if(!AYU && (tab === 'fiado' || tab === 'creditos')) tab = 'negocio';
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   const conMes = tab === 'inicio' || tab === 'movs';
   $('#mesnav').hidden = !conMes;
   $('#titulo').closest('header').classList.toggle('apretado', tab === 'movs');
-  $('#titulo').textContent = {inicio:'Mis gastos', movs:'Movimientos', fijos:'Fijos y suscripciones', negocio:'Clientes', finanzas:'Finanzas', hormiga:'Gastos hormiga', ajustes:'Ajustes'}[tab];
+  $('#titulo').textContent = {inicio:'Mis gastos', movs:'Movimientos', fijos:'Fijos y suscripciones', negocio:'Clientes', fiado:'Fiado', creditos:'Créditos', finanzas:'Finanzas', hormiga:'Gastos hormiga', ajustes:'Ajustes'}[tab];
   $('#mesLabel').textContent = nombreMes(mes);
   $('#mesSig').disabled = mes >= mesActual();
-  $('#fab').hidden = tab === 'ajustes';
-  const vistas = {inicio:vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
+  $('#fab').hidden = tab === 'ajustes' || tab === 'fiado';
+  const vistas = {inicio:vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, fiado:vFiadoAyu, creditos:vCreditosAyu, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
   monVista = tab === 'inicio' && (S.ajustes.verEn === 'US$' || S.ajustes.verEn === 'C$') ? S.ajustes.verEn : null;
   try{ $('#main').innerHTML = vistas[tab](); } finally { monVista = null; }
   if(tab === 'movs') llenarLista();
@@ -1692,6 +1697,32 @@ function vAyudante(){
   if(vs.length) h += `<section class="card"><h3>Mis cobros del mes <small>${vs.length}</small></h3><div class="list">${vs.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
   const bajas = S.clientes.filter(c => estadoCli(c) === 'baja');
   if(bajas.length) h += `<details class="card bajas"><summary><b>No renovaron</b> <small>${bajas.length}</small></summary>${bajas.map(c => filaCli(c, false)).join('')}</details>`;
+  return h;
+}
+function vFiadoAyu(){
+  const pend = S.ventas.filter(v => pendienteV(v) > 0).sort((a,b) => (a.promesa || a.fecha) < (b.promesa || b.fecha) ? -1 : 1);
+  const pagados = S.ventas.filter(v => v.fiado && pendienteV(v) <= 0).sort(ordenG).slice(0, 15), tot = teDebenFiado();
+  let h = `<section class="card"><div class="lbl">📝 Te deben (fiado)</div><div class="big ${tot > 0 ? 'neg' : 'pos'}">${fmt(tot)}</div>
+    <div class="split"><span>${plural(pend.length, 'venta fiada', 'ventas fiadas')} sin pagar completas</span></div></section>`;
+  if(!pend.length) h += '<div class="card empty"><div class="e">✅</div>Nadie te debe. Cuando cobres y el cliente quede debiendo, marca <b>📝 Fiado</b> en el cobro y aparece aquí.</div>';
+  else h += `<section class="card"><h3>Por cobrar <small>toca «Pagó» cuando te pague</small></h3><div class="fiados">${pend.map(v => {
+      const vence = v.promesa ? diasHasta(v.promesa) : null;
+      return `<div class="fia"><span><b>${esc(v.cliente || v.nom)}</b> · ${fechaCorta(v.fecha)}<br><small>${esc(v.paqN || v.nom)}${v.promesa ? ' · pagará el ' + fechaCorta(v.promesa) + (vence < 0 ? ' (atrasado)' : '') : ''}${v.nota ? '<br>' + esc(v.nota) : ''}</small></span>
+        <b>${fmtEn(pendienteV(v), monOk(v.mon))}</b><button type="button" class="btn small primary" data-act="pagoFiado" data-id="${v.id}">💵 Pagó</button></div>`; }).join('')}</div></section>`;
+  if(pagados.length) h += `<details class="card bajas"><summary><b>Ya pagaron</b> <small>${pagados.length}</small></summary><div class="list">${pagados.map(itemVenta).join('')}</div></details>`;
+  return h;
+}
+function vCreditosAyu(){
+  const ym = mesActual(), vc = S.ventas.filter(v => v.tipo === 'creditos'), mes = vc.filter(v => v.fecha.startsWith(ym));
+  const nCred = mes.reduce((a,v) => a + (+v.cant || 0), 0), tot = mes.reduce((a,v) => a + enB(totalVenta(v), v.mon), 0);
+  const cob = mes.reduce((a,v) => a + enB(pagadoV(v), v.mon), 0);
+  let h = `<section class="card"><div class="lbl">💳 Créditos vendidos en ${nombreMes(ym)}</div><div class="big">${plural(nCred, 'crédito', 'créditos')}</div>
+    <div class="split"><span>🛒 Vendido <b>${fmt(tot)}</b></span><span>💵 Cobrado <b>${fmt(cob)}</b></span><span>🏦 En <b>${esc(AYU.cuenta)}</b></span></div></section>
+  <button class="btn primary" data-act="nVCred" style="margin:0 0 12px">💳 Vender créditos</button>`;
+  h += mes.length ? `<section class="card"><h3>Ventas de créditos del mes <small>${mes.length}</small></h3><div class="list">${mes.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`
+    : '<div class="card empty"><div class="e">💳</div>Toca <b>💳 Vender créditos</b>: el cliente (o el nombre de quien compra), cuántos créditos y el precio total. Sale su recibo y le llega solo a ' + esc(AYU.dueno) + '.</div>';
+  const antes = vc.filter(v => !v.fecha.startsWith(ym)).sort(ordenG).slice(0, 20);
+  if(antes.length) h += `<details class="card bajas"><summary><b>Meses anteriores</b> <small>${antes.length}</small></summary><div class="list">${antes.map(itemVenta).join('')}</div></details>`;
   return h;
 }
 function vAjustesAyu(){
@@ -3232,10 +3263,10 @@ function abrirVentaCred(pre){   // vender creditos sueltos: cantidad y precio a 
   pre = pre || {};
   let prodSel = S.productos.some(p => p.id === pre.prod) ? pre.prod : S.productos[0].id;
   const prod = () => S.productos.find(x => x.id === prodSel);
-  let mon = monOk(prod().mon), metodo = 'Efectivo';
+  let mon = monOk(prod().mon), metodo = AYU ? 'Transferencia' : 'Efectivo';
   const cli0 = pre.cli ? S.clientes.find(c => c.id === pre.cli) : null, fotos = [];
   abrirSheet(`<h2>Vender créditos</h2>
-    ${S.productos.length > 1 ? `<div class="lbl2">¿De qué?</div>${chipsProd('wProd', prodSel)}` : `<p class="hint" style="margin-top:0">${esc(prod().nombre)} · tienes ${plural(prod().stock, 'crédito', 'créditos')}</p>`}
+    ${S.productos.length > 1 ? `<div class="lbl2">¿De qué?</div>${chipsProd('wProd', prodSel)}` : `<p class="hint" style="margin-top:0">${esc(prod().nombre)}${AYU ? '' : ' · tienes ' + plural(prod().stock, 'crédito', 'créditos')}</p>`}
     <div class="lbl2">Cliente</div><input id="wCli" class="inp" list="dlCliW" placeholder="Nombre (opcional)" value="${esc(cli0 ? cli0.nombre : '')}" autocomplete="off">
     <datalist id="dlCliW">${S.clientes.map(c => `<option value="${esc(c.nombre)}">`).join('')}</datalist>
     <div class="lbl2">Cantidad de créditos</div><input id="wCant" class="inp" inputmode="numeric" value="1" autocomplete="off">
@@ -3255,7 +3286,7 @@ function abrirVentaCred(pre){   // vender creditos sueltos: cantidad y precio a 
     const fia = getPg().fiado; if(fia) $('#wAb').value = t; else $('#wTot').value = t;
     res(); $('#wOcr').textContent = '📷 Leí ' + (det ? det + ' = ' : '') + fmtEn(t, mon) + (fia ? ' → abono' : ' → precio total'); }));
   const res = () => { const p = prod(), n = entero($('#wCant').value), t = parseMonto($('#wTot').value), cu = convMon(p.costo, monOk(p.mon), mon);
-    $('#wRes').textContent = n > 0 ? `Te cuestan ${fmtEn(n * cu, mon)}${t >= 0 ? ' · ganas ' + fmtEn(t - n * cu, mon) : ''} · te quedarían ${p.stock - n} créditos` : ''; };
+    $('#wRes').textContent = n > 0 ? (AYU ? (t > 0 ? plural(n, 'crédito', 'créditos') + ' a ' + fmtEn(t / n, mon) + ' c/u' : '') : `Te cuestan ${fmtEn(n * cu, mon)}${t >= 0 ? ' · ganas ' + fmtEn(t - n * cu, mon) : ''} · te quedarían ${p.stock - n} créditos`) : ''; };
   $('#wCant').addEventListener('input', res); $('#wTot').addEventListener('input', res);
   if($('#wProd')) $('#wProd').onclick = ev => { const b = ev.target.closest('[data-p]'); if(!b) return; prodSel = b.dataset.p; marcarChip($('#wProd'), 'p', prodSel); res(); };
   $('#wMon').onclick = ev => { const b = ev.target.closest('[data-mon]'); if(!b || b.dataset.mon === mon) return; const t = parseMonto($('#wTot').value), viejo = mon;
@@ -3275,9 +3306,10 @@ function abrirVentaCred(pre){   // vender creditos sueltos: cantidad y precio a 
       items: [{n: plural(n, 'crédito', 'créditos'), cant: 1, precio: total, meses: 0, cred: n}], ...(cli ? {cli: cli.id} : {}), cliente: cli ? cli.nombre : nom,
       cant: n, total, costo: convMon(p.costo, monOk(p.mon), mon), mon, fecha, metodo, recibo: S.ajustes.reciboN, ...(fotos.length ? {fotos: fotos.slice()} : {}), ...(cli && accesoDe(cli) ? {acceso: accesoDe(cli)} : {})};
     aplicarPagoEstado(v, getPg(), metodo);
+    if(AYU){ v.cuenta = AYU.cuenta; v.ayu = AYU.ayudanteId; v.reciboPre = AYU.letra; }
     S.ventas.push(v); p.stock -= n;
     save(); render(); abrirRecibo(v, cli0 ? () => abrirCliente(cli0) : null);
-    toast(`💳 ${plural(n, 'crédito vendido', 'créditos vendidos')} · quedan ${p.stock}`, () => {
+    toast(`💳 ${plural(n, 'crédito vendido', 'créditos vendidos')}${AYU ? '' : ' · quedan ' + p.stock}`, () => {
       const i = S.ventas.indexOf(v); if(i >= 0) S.ventas.splice(i, 1); p.stock += n; if(+S.ajustes.reciboN === v.recibo) S.ajustes.reciboN = v.recibo - 1; save(); render(); cerrarSheet(); });
   };
   setTimeout(() => $('#wCant') && (cli0 ? $('#wCant').focus() : $('#wCli').focus()), 120);
@@ -3613,7 +3645,7 @@ document.addEventListener('click', ev => {
     case 'tab': tab = b.dataset.tab; if(tab !== 'movs'){ filtroCat = null; busqueda = ''; } render(); $('#main').scrollTop = 0; break;
     case 'mesPrev': mes = addYM(mes, -1); render(); break;
     case 'mesSig': if(mes < mesActual()){ mes = addYM(mes, 1); render(); } break;
-    case 'nuevo': tab === 'finanzas' ? abrirMenuFin() : tab === 'negocio' ? (AYU ? abrirCliente(null) : abrirMenuNeg()) : tab === 'fijos' ? abrirFijo(null) : (tab === 'movs' && verMov === 'ingresos' && !filtroCat) ? abrirIngreso(null) : abrirGasto(null); break;
+    case 'nuevo': tab === 'creditos' ? abrirVentaCred() : tab === 'finanzas' ? abrirMenuFin() : tab === 'negocio' ? (AYU ? abrirCliente(null) : abrirMenuNeg()) : tab === 'fijos' ? abrirFijo(null) : (tab === 'movs' && verMov === 'ingresos' && !filtroCat) ? abrirIngreso(null) : abrirGasto(null); break;
     case 'editG': { const g = S.gastos.find(x => x.id === b.dataset.id); if(g) abrirGasto(g); break; }
     case 'editF': { const f = S.fijos.find(x => x.id === b.dataset.id); if(f) abrirFijo(f); break; }
     case 'editI': { const i = S.ingresos.find(x => x.id === b.dataset.id); if(i) abrirIngreso(i); break; }
@@ -3626,6 +3658,7 @@ document.addEventListener('click', ev => {
     case 'nAyu': abrirAyudante(null); break;
     case 'editAyu': { const a = S.ayudantes.find(x => x.id === b.dataset.id); if(a) abrirAyudante(a); break; }
     case 'ayuEnviar': enviarAlDueno(); break;
+    case 'pagoFiado': { const v = S.ventas.find(x => x.id === b.dataset.id); if(v) abrirPagoVenta(v); break; }
     case 'ayuEntrar': abrirLoginNube('ayudante'); break;
     case 'nubeConectar': abrirLoginNube('dueno'); break;
     case 'nubeDesconectar': if(confirm('¿Desconectar lo automático?\n\nTus ayudantes siguen anotando, pero no te llegará nada hasta que te conectes otra vez.')){ escuchas.forEach(f => f()); escuchas = []; salirFirebase(); delete S.ajustes.nube; save(); render(); toast('Desconectado'); } break;
