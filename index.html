@@ -479,6 +479,9 @@ body.modo-ayu .tabs button:not([data-tab="inicio"]):not([data-tab="negocio"]):no
 .cli-num{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center}
 .cli-num b{display:block;font-size:22px;font-weight:800}
 .cli-num small{display:block;font-size:11.5px;color:var(--muted);line-height:1.2}
+
+/* sin explicaciones (24/11/2026) */
+.hint,.foot,.guia,.card.empty,.proy small,.setrow label small,.f-tit small,.mini b,.ing-add small,.exp{display:none!important}
 </style>
 </head>
 <body>
@@ -795,10 +798,11 @@ function render(){
   if(AYU && tab === 'inicio') $('#titulo').textContent = 'Inicio';
   $('#mesLabel').textContent = nombreMes(mes);
   $('#mesSig').disabled = mes >= mesActual();
-  $('#fab').hidden = tab === 'ajustes' || tab === 'fiado';
+  $('#fab').hidden = tab === 'ajustes' || tab === 'fiado' || (AYU && tab === 'inicio');   // en el Inicio de la ayudante ya esta el boton «Cliente nuevo»
   const vistas = {inicio:AYU ? vInicioAyu : vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, fiado:vFiadoAyu, creditos:vCreditosAyu, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
   monVista = tab === 'inicio' && (S.ajustes.verEn === 'US$' || S.ajustes.verEn === 'C$') ? S.ajustes.verEn : null;
   try{ $('#main').innerHTML = vistas[tab](); } finally { monVista = null; }
+  ocultarExplicaciones($('#main'));
   if(tab === 'movs') llenarLista();
 }
 
@@ -2035,7 +2039,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1634';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261124-1642';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -2052,6 +2056,16 @@ $('#actBtn').onclick = () => { $('#actBtn').textContent = 'Actualizando…'; loc
 document.addEventListener('visibilitychange', () => { if(!document.hidden && Date.now() - ultimaRevision > 30000) buscarActualizacion(); });
 setInterval(() => { if(!document.hidden) buscarActualizacion(); }, 600000);
 const actHtml = () => `<section class="card"><div class="split"><span>📲 Versión <b>${esc(APP_VERSION)}</b></span></div><button class="btn" data-act="buscarAct">🔄 Buscar actualización</button></section>`;
+
+/* ================= Sin explicaciones (24/11/2026, Jesser: "esas letras pequeñas que explican, quitame todo eso") =================
+   Se ocultan guias, notas, textos de ayuda y subtitulos que no son datos; quedan montos, cantidades, fechas y botones. */
+function ocultarExplicaciones(raiz){
+  (raiz || document).querySelectorAll('h3 small, .lbl2 small').forEach(el => {
+    const t = el.textContent.trim();
+    if(el.querySelector('.pto') || /^(activado|apagado)$/i.test(t)) return;   // la leyenda de la grafica y el estado del PIN se quedan
+    if(!/\d/.test(t) || /vencen en|toca |del negocio|disponibles con|sin contar|compras \+ fijos|cobros y|recibo, factura|lo que le vendes/i.test(t)) el.classList.add('exp');
+  });
+}
 
 /* ================= Vistas ================= */
 function avisos(){
@@ -2499,6 +2513,7 @@ function vAjustes(){
 /* ================= Hojas (formularios) ================= */
 function abrirSheet(html){
   $('#sheet').innerHTML = '<div class="grab"></div>' + html;
+  ocultarExplicaciones($('#sheet'));
   $('#sheetWrap').hidden = false;
   $('#sheet').scrollTop = 0;
   document.body.style.overflow = 'hidden';
