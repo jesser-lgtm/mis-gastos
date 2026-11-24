@@ -664,10 +664,11 @@ function enBase(monto, mon){
   return v;
 }
 const mB = x => enBase(x.monto, monDe(x));            // monto de una compra o fijo en la moneda principal
+const sim = m => m === 'US$' ? '$' : m;   // como se muestra: córdobas C$, dólares solo $
 function fmtEn(v, mon){
   v = Math.round((+v || 0) * 100) / 100;
   const dec = Math.abs(v % 1) > 0.001;
-  return esc(mon) + ' ' + v.toLocaleString('es-NI', {minimumFractionDigits: dec?2:0, maximumFractionDigits: 2});
+  return esc(sim(mon)) + ' ' + v.toLocaleString('es-NI', {minimumFractionDigits: dec?2:0, maximumFractionDigits: 2});
 }
 const fmtM = x => fmtEn(x.monto, monDe(x));           // en su moneda original
 let monVista = null;   // moneda en que se muestra Inicio (null = la principal)
@@ -684,7 +685,7 @@ function fmt(n){
   if(monVista && monVista !== monBase()) return fmtEn(deBase(n, monVista), monVista);
   const v = Math.round((+n || 0) * 100) / 100;
   const dec = Math.abs(v % 1) > 0.001;
-  return esc(S.ajustes.moneda) + ' ' + v.toLocaleString('es-NI', {minimumFractionDigits: dec?2:0, maximumFractionDigits: 2});
+  return esc(sim(S.ajustes.moneda)) + ' ' + v.toLocaleString('es-NI', {minimumFractionDigits: dec?2:0, maximumFractionDigits: 2});
 }
 function parseMonto(str){
   let s = String(str||'').replace(/[^\d.,]/g,'');
@@ -798,7 +799,7 @@ function render(){
   if(AYU && tab === 'inicio') $('#titulo').textContent = 'Inicio';
   $('#mesLabel').textContent = nombreMes(mes);
   $('#mesSig').disabled = mes >= mesActual();
-  $('#fab').hidden = tab === 'ajustes' || tab === 'fiado' || (AYU && tab === 'inicio');   // en el Inicio de la ayudante ya esta el boton «Cliente nuevo»
+  $('#fab').hidden = tab === 'ajustes' || tab === 'fiado' || tab === 'inicio';   // sin circulo + en Inicio (dueño y ayudante)
   const vistas = {inicio:AYU ? vInicioAyu : vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, fiado:vFiadoAyu, creditos:vCreditosAyu, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
   monVista = tab === 'inicio' && (S.ajustes.verEn === 'US$' || S.ajustes.verEn === 'C$') ? S.ajustes.verEn : null;
   try{ $('#main').innerHTML = vistas[tab](); } finally { monVista = null; }
@@ -1407,7 +1408,7 @@ function abrirAporte(m){
   const mon = monOk(m.mon); let tipo = 'mas';
   abrirSheet(`<h2>${esc(m.e || '🎯')} ${esc(m.nombre)}</h2>
     <div class="seg" id="apT"><button type="button" data-t="mas" class="on">💰 Aportar</button><button type="button" data-t="menos">↩️ Retirar</button></div>
-    <label class="monto" style="margin-top:12px"><span>${esc(mon)}</span><input id="apMonto" inputmode="decimal" placeholder="0" autocomplete="off"></label>
+    <label class="monto" style="margin-top:12px"><span>${esc(sim(mon))}</span><input id="apMonto" inputmode="decimal" placeholder="0" autocomplete="off"></label>
     <div class="lbl2">Fecha</div><input id="apFec" class="inp" type="date" value="${hoy()}" max="${hoy()}">
     <input id="apNota" class="inp" placeholder="Nota (opcional)" style="margin-top:12px" autocomplete="off">
     <div class="err" id="apErr"></div>
@@ -1469,7 +1470,7 @@ function abrirPagoDeuda(d, volver){
   const m = monOk(d.mon), sa = saldoDeuda(d), sug = +d.cuota > 0 ? Math.min(+d.cuota, sa) : sa;
   abrirSheet(`<h2>Pago: ${esc(d.nombre)}</h2>
     <p class="hint" style="margin-top:0">Te falta ${fmtEn(sa, m)}${+d.cuota > 0 ? ' · cuota ' + fmtEn(d.cuota, m) : ''}</p>
-    <label class="monto"><span>${esc(m)}</span><input id="qpMonto" inputmode="decimal" autocomplete="off" value="${sug || ''}"></label>
+    <label class="monto"><span>${esc(sim(m))}</span><input id="qpMonto" inputmode="decimal" autocomplete="off" value="${sug || ''}"></label>
     <button type="button" class="link" id="qpTodo" style="margin-top:0">Pagué todo (${fmtEn(sa, m)})</button>
     <div class="lbl2">Fecha</div><input id="qpFec" class="inp" type="date" value="${hoy()}" max="${hoy()}">
     <input id="qpNota" class="inp" placeholder="Nota (opcional)" style="margin-top:12px" autocomplete="off">
@@ -1743,15 +1744,18 @@ function resumenMesAyu(mes){
   return r;
 }
 function vInicioAyu(){
-  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), r = resumenMesAyu(mes);
+  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), r = resumenMesAyu(mes), rt = resumenMesAyu(S.ventas);
   const fia = teDebenFiado(), nFia = S.ventas.filter(v => pendienteV(v) > 0).length, pr = porRenovar();
   const iniMes = parseD(ym + '-01').getTime(), activos = S.clientes.filter(c => estadoCli(c) !== 'baja').length;
   const nuevos = S.clientes.filter(c => (c.creado || 0) >= iniMes).length, bajas = S.clientes.filter(c => estadoCli(c) === 'baja').length;
   let h = `<section class="card"><div class="lbl">🛒 Vendido en ${nombreMes(ym)}</div><div class="big">${fmt(r.vendido)}</div>
-    <div class="split"><span>🇳🇮 En córdobas <b>${fmtEn(r.enC, 'C$')}</b></span><span>💵 En dólares <b>${fmtEn(r.enU, 'US$')}</b></span></div>
+    <div class="split"><span>En córdobas <b>${fmtEn(r.enC, 'C$')}</b></span><span>💵 En dólares <b>${fmtEn(r.enU, 'US$')}</b></span></div>
     <div class="split" style="margin-top:6px"><span>💵 Cobrado <b class="pos">${fmt(r.cobrado)}</b></span><span>📝 Por cobrar (crédito) <b class="${fia > 0 ? 'rojo' : ''}">${fmt(fia)}</b></span></div>
     <div class="split" style="margin-top:6px"><span>💳 ${plural(r.cred, 'crédito usado', 'créditos usados')} · costo <b>${fmt(r.costo)}</b></span><span>💰 Ganancia <b class="${r.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(r.ganancia)}</b></span></div>
     ${AYU.nube ? nubeAyuHtml() : ''}</section>
+  <section class="card"><div class="lbl">📈 Total generado</div><div class="big">${fmt(rt.vendido)}</div>
+    <div class="split"><span>En córdobas <b>${fmtEn(rt.enC, 'C$')}</b></span><span>💵 En dólares <b>${fmtEn(rt.enU, 'US$')}</b></span></div>
+    <div class="split" style="margin-top:6px"><span>💵 Cobrado <b class="pos">${fmt(rt.cobrado)}</b></span><span>💳 Costo <b>${fmt(rt.costo)}</b></span><span>💰 Ganancia <b class="${rt.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(rt.ganancia)}</b></span></div></section>
   <section class="card"><h3>👥 Clientes <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Ver ›</button></h3>
     <div class="cli-num"><div><b>${activos}</b><small>activos</small></div><div><b>${nuevos}</b><small>nuevos este mes</small></div><div><b class="${pr.length ? 'rojo' : ''}">${pr.length}</b><small>por renovar</small></div><div><b>${bajas}</b><small>no renovaron</small></div></div></section>
   <div class="neg-btns"><button class="btn primary" data-act="nCli">👤 Cliente nuevo</button><button class="btn" data-act="nVCred">💳 Vender créditos</button></div>`;
@@ -2039,7 +2043,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1642';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261124-1653';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -2101,8 +2105,8 @@ function vInicio(){
   if(esCur && dias >= 3 && dias < dim && tv > 0)
     proy = `<div class="proy">📈 A este ritmo cerrarías el mes en <b>${fmt(tv/dias*dim + tf)}</b></div>`;
   const vista = monVista || monBase();
-  h += `<section class="card"><div class="lbl lbl-row"><span>Gastado en ${nombreMes(mes)}</span><div class="seg mini">${[monBase(), monOtra()].map(m => `<button type="button" data-act="verEn" data-v="${m}" class="${m === vista ? 'on' : ''}">${esc(m)}</button>`).join('')}</div></div>
-    ${vista !== monBase() ? `<div class="tasa-nota">Todo en ${vista === 'US$' ? 'dólares' : esc(vista)} con la tasa 1 US$ = ${tasa().toFixed(2)} C$</div>` : ''}
+  h += `<section class="card"><div class="lbl lbl-row"><span>Gastado en ${nombreMes(mes)}</span><div class="seg mini">${[monBase(), monOtra()].map(m => `<button type="button" data-act="verEn" data-v="${m}" class="${m === vista ? 'on' : ''}">${esc(sim(m))}</button>`).join('')}</div></div>
+    ${vista !== monBase() ? `<div class="tasa-nota">Todo en ${vista === 'US$' ? 'dólares' : esc(vista)} con la tasa 1 dólar = ${tasa().toFixed(2)} C$</div>` : ''}
     <div class="big">${fmt(total)}</div>
     <div class="split"><span>🛍️ Compras <b>${fmt(tv)}</b></span><span>🔁 Fijos <b>${fmt(tf)}</b></span></div>
     ${proy}${presupuestoHtml(total)}</section>`;
@@ -2530,13 +2534,13 @@ function chipsCat(sel){   // todas juntas (en el orden de los grupos), de 3 en 3
 }
 function marcarChip(cont, attr, val){ cont.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset[attr] === val)); }
 
-const monHtml = (p, sel, val) => `<div class="seg mon-seg" id="${p}Mon">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}" class="${m === sel ? 'on' : ''}">${m === 'US$' ? '💵 Dólares (US$)' : m === 'C$' ? '🇳🇮 Córdobas (C$)' : esc(m)}</button>`).join('')}</div>
-    <label class="monto"><span id="${p}MonSim">${esc(sel)}</span><input id="${p}Monto" inputmode="decimal" autocomplete="off" placeholder="0" value="${val === '' || val == null ? '' : esc(val)}"></label>
+const monHtml = (p, sel, val) => `<div class="seg mon-seg" id="${p}Mon">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}" class="${m === sel ? 'on' : ''}">${m === 'US$' ? '💵 Dólares ($)' : m === 'C$' ? 'Córdobas (C$)' : esc(m)}</button>`).join('')}</div>
+    <label class="monto"><span id="${p}MonSim">${esc(sim(sel))}</span><input id="${p}Monto" inputmode="decimal" autocomplete="off" placeholder="0" value="${val === '' || val == null ? '' : esc(val)}"></label>
     <div class="conv" id="${p}Conv"></div>`;
 function ligarMon(p, inicial){
   let m = inicial;
-  const conv = () => { const v = parseMonto($('#'+p+'Monto').value); $('#'+p+'Conv').textContent = m !== monBase() && v > 0 ? '≈ ' + fmtEn(enBase(v, m), monBase()) + ' (1 US$ = ' + tasa() + ' C$)' : ''; };
-  $('#'+p+'Mon').onclick = ev => { const b = ev.target.closest('[data-mon]'); if(b){ m = b.dataset.mon; marcarChip($('#'+p+'Mon'), 'mon', m); $('#'+p+'MonSim').textContent = m; conv(); } };
+  const conv = () => { const v = parseMonto($('#'+p+'Monto').value); $('#'+p+'Conv').textContent = m !== monBase() && v > 0 ? '≈ ' + fmtEn(enBase(v, m), monBase()) + ' (1 dólar = ' + tasa() + ' C$)' : ''; };
+  $('#'+p+'Mon').onclick = ev => { const b = ev.target.closest('[data-mon]'); if(b){ m = b.dataset.mon; marcarChip($('#'+p+'Mon'), 'mon', m); $('#'+p+'MonSim').textContent = sim(m); conv(); } };
   $('#'+p+'Monto').addEventListener('input', conv); conv();
   return () => m;
 }
@@ -2653,8 +2657,8 @@ function abrirGasto(g, pre){
     <input id="fDesc" class="inp" list="dlDesc" placeholder="Ej. café, taxi, almuerzo, supermercado…" value="${esc(e.desc)}" autocomplete="off" enterkeyhint="next">
     <datalist id="dlDesc">${descs.map(d => `<option value="${esc(d)}">`).join('')}</datalist>
     <div class="lbl2">Moneda y monto</div>
-    <div class="seg mon-seg" id="fMon">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}" class="${m === monSel ? 'on' : ''}">${m === 'US$' ? '💵 Dólares (US$)' : m === 'C$' ? '🇳🇮 Córdobas (C$)' : esc(m)}</button>`).join('')}</div>
-    <label class="monto"><span id="fMonSim">${esc(monSel)}</span><input id="fMonto" inputmode="decimal" autocomplete="off" placeholder="0" value="${e.monto === '' ? '' : esc(e.monto)}"></label>
+    <div class="seg mon-seg" id="fMon">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}" class="${m === monSel ? 'on' : ''}">${m === 'US$' ? '💵 Dólares ($)' : m === 'C$' ? 'Córdobas (C$)' : esc(m)}</button>`).join('')}</div>
+    <label class="monto"><span id="fMonSim">${esc(sim(monSel))}</span><input id="fMonto" inputmode="decimal" autocomplete="off" placeholder="0" value="${e.monto === '' ? '' : esc(e.monto)}"></label>
     <div class="conv" id="fConv"></div>
     <div class="lbl2 lbl-row"><span>Categoría</span><button type="button" class="lnk" id="fCatsEd">✏️ Editar</button></div><div class="chips" id="fCats">${chipsCat(catSel)}</div>
     <div class="lbl2">Pago</div><div class="seg" id="fMet">${METODOS.map(m => `<button type="button" data-m="${m}" class="${m === metSel ? 'on' : ''}">${m}</button>`).join('')}</div>
@@ -2667,8 +2671,8 @@ function abrirGasto(g, pre){
     ${g ? '<button class="btn danger" id="fDel">Eliminar</button>' : ''}
     <button class="btn ghost" id="fNo">Cancelar</button>`);
   const cats = $('#fCats'), met = $('#fMet');
-  const conv = () => { const v = parseMonto($('#fMonto').value || $('#fMonto').placeholder); $('#fConv').textContent = monSel !== monBase() && v > 0 ? '≈ ' + fmtEn(enBase(v, monSel), monBase()) + ' (1 US$ = ' + tasa() + ' C$)' : ''; };
-  $('#fMon').onclick = ev => { const b = ev.target.closest('[data-mon]'); if(b){ monSel = b.dataset.mon; marcarChip($('#fMon'), 'mon', monSel); $('#fMonSim').textContent = monSel; conv(); } };
+  const conv = () => { const v = parseMonto($('#fMonto').value || $('#fMonto').placeholder); $('#fConv').textContent = monSel !== monBase() && v > 0 ? '≈ ' + fmtEn(enBase(v, monSel), monBase()) + ' (1 dólar = ' + tasa() + ' C$)' : ''; };
+  $('#fMon').onclick = ev => { const b = ev.target.closest('[data-mon]'); if(b){ monSel = b.dataset.mon; marcarChip($('#fMon'), 'mon', monSel); $('#fMonSim').textContent = sim(monSel); conv(); } };
   $('#fMonto').addEventListener('input', conv); conv();
   cats.onclick = ev => { const b = ev.target.closest('[data-cat]'); if(b){ catSel = b.dataset.cat; marcarChip(cats, 'cat', catSel); } };
   met.onclick = ev => { const b = ev.target.closest('[data-m]'); if(b){ metSel = b.dataset.m; marcarChip(met, 'm', metSel); $('#fTarWrap').hidden = metSel !== 'Tarjeta'; } };
@@ -2681,7 +2685,7 @@ function abrirGasto(g, pre){
     const u = ultimoPorDesc(ev.target.value);
     if(u){
       catSel = u.cat; marcarChip(cats, 'cat', catSel);
-      if(!$('#fMonto').value){ $('#fMonto').placeholder = u.monto; monSel = monDe(u); marcarChip($('#fMon'), 'mon', monSel); $('#fMonSim').textContent = monSel; conv(); }
+      if(!$('#fMonto').value){ $('#fMonto').placeholder = u.monto; monSel = monDe(u); marcarChip($('#fMon'), 'mon', monSel); $('#fMonSim').textContent = sim(monSel); conv(); }
     }
   });
   $('#fNo').onclick = cerrarSheet;
@@ -2715,8 +2719,8 @@ function abrirFijo(f, pre){
     <div class="seg${f ? '' : ' tri'}" id="xTipo"><button type="button" data-t="suscripcion" class="${tipo === 'suscripcion' ? 'on' : ''}">📺 Suscripción</button><button type="button" data-t="fijo" class="${tipo !== 'suscripcion' ? 'on' : ''}">🏠 Gasto fijo</button>${f ? '' : '<button type="button" data-t="ingreso">💼 Salario</button>'}</div>
     <div class="lbl2">Nombre</div><input id="xNom" class="inp" placeholder="Netflix, alquiler, internet…" value="${esc(e.nombre)}" autocomplete="off">
     <div class="lbl2">Monto de cada cobro</div>
-    <div class="seg mon-seg" id="xMon">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}" class="${m === monSel ? 'on' : ''}">${m === 'US$' ? '💵 Dólares (US$)' : m === 'C$' ? '🇳🇮 Córdobas (C$)' : esc(m)}</button>`).join('')}</div>
-    <label class="monto"><span id="xMonSim">${esc(monSel)}</span><input id="xMonto" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(e.monto)}"></label>
+    <div class="seg mon-seg" id="xMon">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}" class="${m === monSel ? 'on' : ''}">${m === 'US$' ? '💵 Dólares ($)' : m === 'C$' ? 'Córdobas (C$)' : esc(m)}</button>`).join('')}</div>
+    <label class="monto"><span id="xMonSim">${esc(sim(monSel))}</span><input id="xMonto" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(e.monto)}"></label>
     <div class="conv" id="xConv"></div>
     <div class="lbl2">¿Cada cuánto?</div><div class="seg" id="xFrec">${Object.entries(FREC).map(([k,v]) => `<button type="button" data-fr="${k}" class="${k === frec ? 'on' : ''}">${v.n}</button>`).join('')}</div>
     <div class="lbl2">Fecha de un cobro (el último o el próximo)</div><input id="xIni" class="inp" type="date" value="${e.inicio}">
@@ -2726,8 +2730,8 @@ function abrirFijo(f, pre){
     ${f ? `<button class="btn" id="xPausa">${f.pausadoDesde ? '▶️ Reactivar' : '⏸️ Pausar (ya no lo pago)'}</button><button class="btn danger" id="xDel">Eliminar</button>` : ''}
     <button class="btn ghost" id="xNo">Cancelar</button>`);
   const cats = $('#xCats');
-  const conv = () => { const v = parseMonto($('#xMonto').value); $('#xConv').textContent = monSel !== monBase() && v > 0 ? '≈ ' + fmtEn(enBase(v, monSel), monBase()) + ' (1 US$ = ' + tasa() + ' C$)' : ''; };
-  $('#xMon').onclick = ev => { const b = ev.target.closest('[data-mon]'); if(b){ monSel = b.dataset.mon; marcarChip($('#xMon'), 'mon', monSel); $('#xMonSim').textContent = monSel; conv(); } };
+  const conv = () => { const v = parseMonto($('#xMonto').value); $('#xConv').textContent = monSel !== monBase() && v > 0 ? '≈ ' + fmtEn(enBase(v, monSel), monBase()) + ' (1 dólar = ' + tasa() + ' C$)' : ''; };
+  $('#xMon').onclick = ev => { const b = ev.target.closest('[data-mon]'); if(b){ monSel = b.dataset.mon; marcarChip($('#xMon'), 'mon', monSel); $('#xMonSim').textContent = sim(monSel); conv(); } };
   $('#xMonto').addEventListener('input', conv); conv();
   $('#xTipo').onclick = ev => { const b = ev.target.closest('[data-t]'); if(!b) return;
     if(b.dataset.t === 'ingreso'){ abrirIngFijo(null, {nombre: $('#xNom').value.trim() || 'Salario', monto: $('#xMonto').value, mon: monSel, frecuencia: frec}); return; }
@@ -2857,7 +2861,7 @@ function abrirIngFijo(f, pre){
   }
 }
 
-const segMonSolo = (id, sel) => `<div class="seg mon-seg" id="${id}">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}" class="${m === sel ? 'on' : ''}">${m === 'US$' ? '💵 Dólares (US$)' : m === 'C$' ? '🇳🇮 Córdobas (C$)' : esc(m)}</button>`).join('')}</div>`;
+const segMonSolo = (id, sel) => `<div class="seg mon-seg" id="${id}">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}" class="${m === sel ? 'on' : ''}">${m === 'US$' ? '💵 Dólares ($)' : m === 'C$' ? 'Córdobas (C$)' : esc(m)}</button>`).join('')}</div>`;
 const entero = v => { const n = parseInt(String(v ?? '').replace(/[^\d-]/g, ''), 10); return isFinite(n) ? n : NaN; };
 
 function abrirMenuNeg(){
@@ -2941,7 +2945,7 @@ function cobroHtml(x){
   return `<div class="lbl2">Paquetes <small>toca uno para agregarlo; puedes poner varios</small></div>
     <div class="paq-chips add" id="${x}CPaqs"></div>
     <div class="cobro-items" id="${x}CItems"></div>
-    <div class="lbl2">Moneda del pago</div><div class="seg mon-seg" id="${x}CMon">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}">${m === 'US$' ? '💵 Dólares (US$)' : m === 'C$' ? '🇳🇮 Córdobas (C$)' : esc(m)}</button>`).join('')}</div>
+    <div class="lbl2">Moneda del pago</div><div class="seg mon-seg" id="${x}CMon">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}">${m === 'US$' ? '💵 Dólares ($)' : m === 'C$' ? 'Córdobas (C$)' : esc(m)}</button>`).join('')}</div>
     <div class="lbl2">Total a cobrar</div><label class="monto"><span id="${x}CSim"></span><input id="${x}CTot" inputmode="decimal" autocomplete="off" placeholder="0"></label>
     <div class="conv" id="${x}CRes"></div>
     <div class="lbl2">Método de pago</div><div class="seg" id="${x}CMet">${METODOS_COBRO.map(m => `<button type="button" data-m="${m}">${m}</button>`).join('')}</div>
@@ -2964,7 +2968,7 @@ function ligarCobro(x, getProd, inicial, getBase){
     $('#' + x + 'CItems').innerHTML = items.length ? items.map(i => `<div class="ci" data-k="${i.paq}"><div class="ci-t"><b>${esc(i.n)}</b><small>${plural((i.meses || 1) * i.cant, 'mes', 'meses')} · ${plural(i.cred * i.cant, 'crédito', 'créditos')} · ${fmtEn(i.precio * i.cant, m0)}</small></div>
       <div class="ci-q"><button type="button" data-q="-1" aria-label="Menos">−</button><span>${i.cant}</span><button type="button" data-q="1" aria-label="Más">+</button></div></div>`).join('')
       : '<p class="hint" style="margin:2px 0">Toca un paquete de arriba para agregarlo.</p>';
-    marcarChip($('#' + x + 'CMon'), 'mon', mon); $('#' + x + 'CSim').textContent = mon;
+    marcarChip($('#' + x + 'CMon'), 'mon', mon); $('#' + x + 'CSim').textContent = sim(mon);
     if(!manual) tot.value = items.length ? String(normal()) : '';
     resumen();
   };
@@ -3288,7 +3292,7 @@ function abrirPagoVenta(v, volver){
   const m = monOk(v.mon), pend = pendienteV(v); let metodo = 'Efectivo';
   abrirSheet(`<h2>Pago de ${esc(v.cliente || v.nom)}</h2>
     <p class="hint" style="margin-top:0">${esc(v.nom)}${v.paqN ? ' · ' + esc(v.paqN) : ''} · ${fechaCorta(v.fecha)} · debe ${fmtEn(pend, m)} de ${fmtEn(totalVenta(v), m)}</p>
-    <label class="monto"><span>${esc(m)}</span><input id="gMonto" inputmode="decimal" placeholder="0" autocomplete="off"></label>
+    <label class="monto"><span>${esc(sim(m))}</span><input id="gMonto" inputmode="decimal" placeholder="0" autocomplete="off"></label>
     <button type="button" class="link" id="gTodo" style="margin-top:0">Pagó todo (${fmtEn(pend, m)})</button>
     <div class="lbl2">Método de pago</div><div class="seg" id="gMet">${METODOS_COBRO.map(x => `<button type="button" data-m="${x}" class="${x === metodo ? 'on' : ''}">${x}</button>`).join('')}</div>
     <div class="lbl2">Fecha</div><input id="gFec" class="inp" type="date" value="${hoy()}" max="${hoy()}">
@@ -3326,7 +3330,7 @@ function abrirVenta(v){   // corregir una venta ya anotada, ver su recibo y sus 
     <button class="btn" id="vRec" style="margin:6px 0 4px">🧾 Ver y enviar recibo</button>
     <div class="lbl2">Cliente</div><input id="vCli" class="inp" value="${esc(v.cliente || '')}" autocomplete="off">
     <div class="dos"><div><div class="lbl2">Créditos usados</div><input id="vCant" class="inp" inputmode="numeric" value="${esc(v.cant)}"></div>
-      <div><div class="lbl2">Total (${esc(m)})</div><input id="vTot" class="inp" inputmode="decimal" value="${esc(totalVenta(v))}"></div></div>
+      <div><div class="lbl2">Total (${esc(sim(m))})</div><input id="vTot" class="inp" inputmode="decimal" value="${esc(totalVenta(v))}"></div></div>
     <div class="lbl2">Método de pago</div><div class="seg" id="vMet">${METODOS_COBRO.map(x => `<button type="button" data-m="${x}" class="${x === metodo ? 'on' : ''}">${x}</button>`).join('')}</div>
     <div class="lbl2">¿Pagó?</div><div class="seg" id="vPg"><button type="button" data-pg="si" class="${pg === 'si' ? 'on' : ''}">✅ Pagado</button><button type="button" data-pg="fiado" class="${pg === 'fiado' ? 'on' : ''}">📝 Fiado</button></div>
     <div class="lbl2">Fecha</div><input id="vFec" class="inp" type="date" value="${v.fecha}" max="${hoy()}">
@@ -3380,7 +3384,7 @@ function abrirVentaCred(pre){   // vender creditos sueltos: cantidad y precio a 
     <datalist id="dlCliW">${S.clientes.map(c => `<option value="${esc(c.nombre)}">`).join('')}</datalist>
     <div class="lbl2">Cantidad de créditos</div><input id="wCant" class="inp" inputmode="numeric" value="1" autocomplete="off">
     <div class="lbl2">Moneda del pago</div>${segMonSolo('wMon', mon)}
-    <div class="lbl2">Precio total</div><label class="monto"><span id="wSim">${esc(mon)}</span><input id="wTot" inputmode="decimal" placeholder="0" autocomplete="off"></label>
+    <div class="lbl2">Precio total</div><label class="monto"><span id="wSim">${esc(sim(mon))}</span><input id="wTot" inputmode="decimal" placeholder="0" autocomplete="off"></label>
     <div class="conv" id="wRes"></div>
     <div class="lbl2">Método de pago</div><div class="seg" id="wMet">${METODOS_COBRO.map(x => `<button type="button" data-m="${x}" class="${x === metodo ? 'on' : ''}">${x}</button>`).join('')}</div>
     ${pagoHtml('w')}
@@ -3391,7 +3395,7 @@ function abrirVentaCred(pre){   // vender creditos sueltos: cantidad y precio a 
     <button class="btn ghost" id="wNo">${cli0 ? '‹ Volver' : 'Cancelar'}</button>`);
   const getPg = ligarPago('w');
   ligarFotos('w', fotos, ligarOcrMonto('w', fotos, (t, mo, det) => {
-    if(mo && mo !== mon){ mon = mo; marcarChip($('#wMon'), 'mon', mon); $('#wSim').textContent = mon; }
+    if(mo && mo !== mon){ mon = mo; marcarChip($('#wMon'), 'mon', mon); $('#wSim').textContent = sim(mon); }
     const fia = getPg().fiado; if(fia) $('#wAb').value = t; else $('#wTot').value = t;
     res(); $('#wOcr').textContent = '📷 Leí ' + (det ? det + ' = ' : '') + fmtEn(t, mon) + (fia ? ' → abono' : ' → precio total'); }));
   const res = () => { const p = prod(), n = entero($('#wCant').value), t = parseMonto($('#wTot').value), cu = convMon(p.costo, monOk(p.mon), mon);
@@ -3399,7 +3403,7 @@ function abrirVentaCred(pre){   // vender creditos sueltos: cantidad y precio a 
   $('#wCant').addEventListener('input', res); $('#wTot').addEventListener('input', res);
   if($('#wProd')) $('#wProd').onclick = ev => { const b = ev.target.closest('[data-p]'); if(!b) return; prodSel = b.dataset.p; marcarChip($('#wProd'), 'p', prodSel); res(); };
   $('#wMon').onclick = ev => { const b = ev.target.closest('[data-mon]'); if(!b || b.dataset.mon === mon) return; const t = parseMonto($('#wTot').value), viejo = mon;
-    mon = b.dataset.mon; marcarChip($('#wMon'), 'mon', mon); $('#wSim').textContent = mon; if(t >= 0) $('#wTot').value = convMon(t, viejo, mon); res(); };
+    mon = b.dataset.mon; marcarChip($('#wMon'), 'mon', mon); $('#wSim').textContent = sim(mon); if(t >= 0) $('#wTot').value = convMon(t, viejo, mon); res(); };
   $('#wMet').onclick = ev => { const b = ev.target.closest('[data-m]'); if(b){ metodo = b.dataset.m; marcarChip($('#wMet'), 'm', metodo); } };
   res();
   $('#wNo').onclick = () => cli0 ? abrirCliente(cli0) : cerrarSheet();
@@ -3434,7 +3438,7 @@ function abrirCompraNeg(c, pre){
   abrirSheet(`<h2>${c ? 'Editar compra de créditos' : 'Compré créditos'}</h2>
     <div class="lbl2">¿De qué?</div>${chipsProd('cProd', prodSel)}
     <div class="dos"><div><div class="lbl2">Cuántos créditos</div><input id="cCant" class="inp" inputmode="numeric" placeholder="0" value="${esc(e.cant)}"></div>
-      <div><div class="lbl2">Costo c/u (<span id="cMonS">${esc(mon)}</span>)</div><input id="cCos" class="inp" inputmode="decimal" placeholder="0" value="${esc(c ? c.costo : (p0 ? p0.costo : ''))}"></div></div>
+      <div><div class="lbl2">Costo c/u (<span id="cMonS">${esc(sim(mon))}</span>)</div><input id="cCos" class="inp" inputmode="decimal" placeholder="0" value="${esc(c ? c.costo : (p0 ? p0.costo : ''))}"></div></div>
     <div class="conv" id="cTot"></div>
     <div class="lbl2">Fecha</div><input id="cFec" class="inp" type="date" value="${e.fecha}" max="${hoy()}">
     <div class="err" id="cErr"></div>
@@ -3443,7 +3447,7 @@ function abrirCompraNeg(c, pre){
     <button class="btn ghost" id="cNo">Cancelar</button>`);
   const tot = () => { const n = entero($('#cCant').value), co = parseMonto($('#cCos').value); $('#cTot').textContent = n > 0 && co >= 0 ? 'Pagaste ' + fmtEn(n * co, mon) : ''; };
   $('#cProd').onclick = ev => { const b = ev.target.closest('[data-p]'); if(!b) return; prodSel = b.dataset.p; marcarChip($('#cProd'), 'p', prodSel);
-    const p = prod(); if(p){ mon = monOk(p.mon); $('#cMonS').textContent = mon; if(!c) $('#cCos').value = p.costo; } tot(); };
+    const p = prod(); if(p){ mon = monOk(p.mon); $('#cMonS').textContent = sim(mon); if(!c) $('#cCos').value = p.costo; } tot(); };
   $('#cCant').addEventListener('input', tot); $('#cCos').addEventListener('input', tot); tot();
   $('#cNo').onclick = cerrarSheet;
   $('#cOk').onclick = () => {
@@ -3524,7 +3528,7 @@ function abrirAbono(p){
   const m = monOk(p.mon), sa = saldoP(p);
   abrirSheet(`<h2>Abono de ${esc(p.persona)}</h2>
     <p class="hint" style="margin-top:0">Te debe ${fmtEn(sa, m)}.</p>
-    <label class="monto"><span>${esc(m)}</span><input id="aMonto" inputmode="decimal" autocomplete="off" placeholder="0"></label>
+    <label class="monto"><span>${esc(sim(m))}</span><input id="aMonto" inputmode="decimal" autocomplete="off" placeholder="0"></label>
     <button type="button" class="link" id="aTodo" style="margin-top:0">Pagó todo (${fmtEn(sa, m)})</button>
     <div class="lbl2">Fecha</div><input id="aFec" class="inp" type="date" value="${hoy()}" max="${hoy()}">
     <div class="err" id="aErr"></div>
