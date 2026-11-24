@@ -511,6 +511,61 @@ main#main.lleno>section.card:last-of-type,main#main.lleno>#lista{flex:1 0 auto;m
 main#main.lleno #lista{display:flex;flex-direction:column}
 main#main.lleno #lista>.card:last-of-type{flex:1 0 auto;margin-bottom:0}
 main#main.lleno.con-fab>section.card:last-of-type,main#main.lleno.con-fab #lista>.card:last-of-type{padding-bottom:84px !important}
+
+/* clientes en una linea (24/11/2026) */
+.cli .amt.cv{font-size:14px;font-weight:600;white-space:nowrap}
+.fia{align-items:center}
+
+/* ===== PC (24/11/2026): menu a la izquierda, dos columnas, ventanas al centro ===== */
+@media (min-width: 900px){
+  html,body{height:auto;overflow:visible;overscroll-behavior:auto}
+  body{display:block;padding:0 0 0 232px;touch-action:auto}
+  header{position:sticky;top:0;max-width:1240px;margin:0 auto;padding:22px 32px 14px}
+  header h1{font-size:26px}
+  .tabs{top:0;bottom:0;left:0;right:auto;width:232px;flex-direction:column;gap:4px;padding:24px 14px;border-top:0;border-right:1px solid var(--line)}
+  .tabs button{flex:none;flex-direction:row;justify-content:flex-start;gap:12px;padding:11px 14px;border-radius:12px;font-size:15px}
+  .tabs button:hover{background:var(--track)}
+  .tabs button.on{background:var(--accent-soft)}
+  main#main,main#main.lleno{display:block;overflow:visible;height:auto;min-height:0;max-width:1240px;margin:0 auto;
+    padding:4px 32px 48px;column-count:2;column-gap:18px}
+  main#main>*{break-inside:avoid}
+  main#main>.card,main#main>details.card{display:block;margin-bottom:18px}
+  main#main>.kpis-card,main#main>.aviso,main#main>.search,main#main>.seg,main#main>.filtro,main#main>.neg-btns,main#main>.act-banner{column-span:all}
+  main#main[data-tab="movs"],main#main.modo1{column-count:1;max-width:960px}
+  body.modo-ayu main#main[data-tab="inicio"]{column-count:1;max-width:960px}
+  main#main.lleno.con-fab>section.card:last-of-type,main#main.lleno.con-fab #lista>.card:last-of-type{padding-bottom:16px !important}
+  .kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .kpis.k3{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .sheet-wrap{align-items:center}
+  .sheet{border-radius:22px;max-width:620px;max-height:88vh}
+  .fab{right:40px;bottom:40px}
+  .toast{bottom:40px;left:calc(50% + 116px)}
+  .act-banner{left:256px;right:24px;top:16px}
+  .item:hover,.kpi:hover,.pend-r:hover{filter:brightness(1.04)}
+}
+
+/* Clientes: arriba fijo, solo la lista se desliza (24/11/2026) */
+main#main .cli-top{position:sticky;top:-2px;z-index:3;background:var(--bg);margin:0 -4px;padding:2px 4px 1px}
+main#main .cli-top .kpis-card{margin-bottom:10px}
+main#main .cli-top #buscarCli{margin:0 0 10px}
+.cli.con-pago{display:flex;align-items:center;gap:8px}
+.cli.con-pago>.item{flex:1;min-width:0}
+.cli.con-pago>.btn{flex:none;width:auto;margin:0}
+.cli .amt.cv small{display:block;font-size:12px}
+.cli .amt.cv.rojo,.cli .amt.cv .rojo{color:var(--bad)}
+.cli.con-pago>.btn{padding:8px 12px;font-size:14px}
+#lupaBtn{font-size:17px}
+.paq-ini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.paq-ini .kpi b{font-size:20px}
+.aj-ayu h3{margin-bottom:10px}
+.aj-ayu .btn{margin-top:8px}
+.aj-ayu .setrow{padding:6px 0}
+.aj-ayu .aj-b{display:flex;gap:6px}
+.aj-ayu .aj-b .btn{width:auto;margin:0}
+@media (min-width: 900px){
+  main#main .cli-top{position:static;column-span:all;margin:0;padding:0}
+  main#main .cli-top .kpis.k3{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 </style>
 </head>
 <body>
@@ -522,6 +577,7 @@ main#main.lleno.con-fab>section.card:last-of-type,main#main.lleno.con-fab #lista
     <span id="mesLabel"></span>
     <button data-act="mesSig" id="mesSig" aria-label="Mes siguiente">›</button>
   </div>
+  <button class="tema-btn" id="lupaBtn" data-act="lupa" aria-label="Buscar cliente" hidden>🔍</button>
   <button class="tema-btn" id="temaBtn" data-act="tema" aria-label="Cambiar entre modo día y noche"></button>
   </div>
 </header>
@@ -815,6 +871,7 @@ function aplicarTema(){
   if(b){ const osc = temaOscuro(); b.textContent = osc ? '☀️' : '🌙'; b.setAttribute('aria-label', osc ? 'Pasar a modo día' : 'Pasar a modo noche'); }
 }
 
+let buscaCli = false;   // la lupa de Clientes
 function render(){
   aplicarTema();
   migrarNegocio();
@@ -831,6 +888,8 @@ function render(){
   $('#fab').hidden = tab === 'ajustes' || tab === 'fiado' || tab === 'inicio';   // sin circulo + en Inicio (dueño y ayudante)
   $('#main').classList.toggle('lleno', ['inicio', 'movs', 'fijos', 'negocio', 'creditos'].includes(tab));   // la ultima tarjeta llega hasta abajo
   $('#main').classList.toggle('con-fab', !$('#fab').hidden);
+  $('#main').dataset.tab = tab;
+  $('#lupaBtn').hidden = tab !== 'negocio';
   const vistas = {inicio:AYU ? vInicioAyu : vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, fiado:vFiadoAyu, creditos:vCreditosAyu, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
   monVista = tab === 'inicio' && (S.ajustes.verEn === 'US$' || S.ajustes.verEn === 'C$') ? S.ajustes.verEn : null;
   try{ $('#main').innerHTML = vistas[tab](); } finally { monVista = null; }
@@ -949,32 +1008,59 @@ function hacerNoRenovo(c){
 }
 
 function itemProd(p){
-  return `<button class="item wrap" data-act="editProd" data-id="${p.id}"><span class="ico">📺</span>
-    <span class="txt"><b>${esc(p.nombre)}</b><small>Crédito a ${fmtEn(p.costo, monOk(p.mon))} · ${p.paquetes.map(k => esc(k.n) + ': ' + plural(k.cred, 'crédito', 'créditos') + ' → ' + fmtEn(k.precio, monOk(p.mon))).join(' · ')}</small></span>
+  return `<button class="item" data-act="editProd" data-id="${p.id}"><span class="ico">📺</span>
+    <span class="txt"><b>${esc(p.nombre)}</b></span>
     <span class="amt"><span class="${p.stock <= 0 ? 'rojo' : ''}">${p.stock}</span><small>créditos</small></span></button>`;
 }
-function filaCli(c, botones){
-  const p = prodDe(c), k = paqDe(c), e = estadoCli(c), deu = deudaCli(c);
-  return `<div class="cli ${e}" data-n="${esc(norm(c.nombre + ' ' + (c.tel || '')))}"><button class="item wrap" data-act="editCli" data-id="${c.id}"><span class="ico">${e === 'baja' ? '💤' : e === 'vencido' ? '⏰' : '👤'}</span>
-    <span class="txt"><b>${esc(c.nombre)}</b><small>${p ? esc(p.nombre) + (k ? ' · ' + esc(k.n) + ' · ' + fmtEn(k.precio, monOk(p.mon)) : '') : 'Sin producto'}<br><span class="cv">${textoEstado(c)}</span>${c.avisado && c.avisado === c.vence && e !== 'activo' ? ' · 💬 avisado' : ''}${c.ayu && !AYU ? ' · 👥 ' + esc(nombreAyu(c.ayu)) : ''}${deu > 0.004 ? ` · <span class="debe-b">📝 Debe ${fmt(deu)}</span>` : ''}</small></span></button>
+function filaCli(c, botones){   // una linea: nombre y cuando vence (o lo que debe, con «Pagó»)
+  const e = estadoCli(c), d = c.vence ? diasHasta(c.vence) : null, deu = deudaCli(c);
+  const est = e === 'baja' ? 'No renovó' : d === null ? '' : d < 0 ? 'Venció ' + fechaCorta(c.vence) : d === 0 ? 'Vence hoy' : fechaCorta(c.vence);
+  const vp = deu > 0.004 ? S.ventas.filter(v => v.cli === c.id && pendienteV(v) > 0).sort((a,b) => a.fecha < b.fecha ? -1 : 1)[0] : null;
+  const der = vp && !botones ? `<span class="amt cv rojo">${fmt(deu)}</span>` : `<span class="amt cv">${est}${vp ? `<small class="rojo">debe ${fmt(deu)}</small>` : ''}</span>`;
+  return `<div class="cli ${e}${vp && !botones ? ' con-pago' : ''}" data-n="${esc(norm(c.nombre + ' ' + (c.tel || '')))}"><button class="item" data-act="editCli" data-id="${c.id}"><span class="ico">${e === 'baja' ? '💤' : e === 'vencido' ? '⏰' : vp ? '📝' : '👤'}</span>
+    <span class="txt"><b>${esc(c.nombre)}</b></span>${der}</button>${vp && !botones ? `<button type="button" class="btn small primary" data-act="pagoFiado" data-id="${vp.id}">💵 Pagó</button>` : ''}
     ${botones ? `<div class="cli-btns"><button class="btn small primary" data-act="renovar" data-id="${c.id}">✅ Renovó</button><button class="btn small" data-act="noRenovo" data-id="${c.id}">❌ No renovó</button><button class="btn small" data-act="avisar" data-id="${c.id}">💬 Avisar</button></div>` : ''}</div>`;
 }
+function filaFiaV(v){   // fiado sin cliente guardado (ej. venta de créditos)
+  return `<div class="cli con-pago" data-n="${esc(norm(v.cliente || v.nom))}"><button class="item" data-act="editVenta" data-id="${v.id}"><span class="ico">📝</span>
+    <span class="txt"><b>${esc(v.cliente || v.nom)}</b></span><span class="amt cv rojo">${fmtEn(pendienteV(v), monOk(v.mon))}</span></button><button type="button" class="btn small primary" data-act="pagoFiado" data-id="${v.id}">💵 Pagó</button></div>`;
+}
+function clientesTop(){   // lo de arriba de Clientes (queda fijo); igual para el dueño y la ayudante
+  const ym = mesActual(), r = resumenMesAyu(S.ventas.filter(v => v.fecha.startsWith(ym))), activos = S.clientes.filter(c => estadoCli(c) !== 'baja').length;
+  return `<div class="cli-top"><section class="card kpis-card"><div class="kpis-top"><span>${nombreMes(ym)}</span></div><div class="kpis k3">
+      <div class="kpi"><small>💵 Cobrado</small><b class="pos">${fmt(r.cobrado)}</b></div>
+      <div class="kpi"><small>💰 Ganancia</small><b class="${r.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(r.ganancia)}</b></div>
+      <div class="kpi"><small>👥 Clientes</small><b>${activos}</b></div></div></section>
+    ${buscaCli ? '<input class="inp search" id="buscarCli" type="search" placeholder="🔍 Buscar cliente" autocomplete="off">' : ''}</div>`;
+}
+function clientesListas(){   // cada nombre una sola vez: Por renovar > Fiado > Clientes > No renovaron
+  const pr = porRenovar(), debe = c => deudaCli(c) > 0.004;
+  const deu = S.clientes.filter(c => !pr.includes(c) && debe(c)).sort((a,b) => norm(a.nombre) < norm(b.nombre) ? -1 : 1);
+  const sueltos = S.ventas.filter(v => pendienteV(v) > 0 && !S.clientes.some(c => c.id === v.cli));
+  let h = '';
+  if(pr.length) h += `<section class="card"><h3>⏰ Por renovar <small>${pr.length}</small></h3>${pr.map(c => filaCli(c, true)).join('')}</section>`;
+  if(deu.length || sueltos.length) h += `<section class="card"><h3>📝 Fiado <small>${fmt(teDebenFiado())}</small></h3>${deu.map(c => filaCli(c, false)).join('')}${sueltos.map(filaFiaV).join('')}</section>`;
+  const resto = S.clientes.filter(c => estadoCli(c) !== 'baja' && !pr.includes(c) && !debe(c)).sort((a,b) => norm(a.nombre) < norm(b.nombre) ? -1 : 1);
+  if(resto.length) h += `<section class="card"><h3>👥 Clientes <small>${resto.length}</small></h3>${resto.map(c => filaCli(c, false)).join('')}</section>`;
+  const bajas = S.clientes.filter(c => estadoCli(c) === 'baja' && !deu.includes(c));
+  if(bajas.length) h += `<details class="card bajas"><summary><b>💤 No renovaron</b> <small>${bajas.length}</small></summary>${bajas.map(c => filaCli(c, false)).join('')}</details>`;
+  return h;
+}
 function itemVenta(v){
-  const m = monOk(v.mon), det = v.paqN && v.tipo !== 'creditos' ? esc(v.paqN) + ' · ' + plural(v.cant, 'crédito', 'créditos') : plural(v.cant, 'crédito', 'créditos');
-  return `<button class="item ing wrap" data-act="editVenta" data-id="${v.id}"><span class="ico">🛒</span>
-    <span class="txt"><b>${esc(v.cliente || v.nom)}</b><small>${esc(v.nom)} · ${det}${v.metodo ? ' · ' + esc(v.metodo) : ''}${nFotos(v)}${v.cuenta ? ' · 🏦 ' + esc(v.cuenta) : ''}${v.fiado ? (pendienteV(v) > 0 ? ` · <span class="debe-b">📝 debe ${fmtEn(pendienteV(v), m)}</span>` : ' · ✓ fiado pagado') : ''}</small></span>
-    <span class="amt">+${fmtEn(totalVenta(v), m)}<small>${fechaCorta(v.fecha)}</small></span></button>`;
+  return `<button class="item ing" data-act="editVenta" data-id="${v.id}"><span class="ico">🛒</span>
+    <span class="txt"><b>${esc(v.cliente || v.nom)}</b></span>
+    <span class="amt">+${fmtEn(totalVenta(v), monOk(v.mon))}<small>${fechaCorta(v.fecha)}</small></span></button>`;
 }
 function itemCompraN(c){
   return `<button class="item" data-act="editCompraN" data-id="${c.id}"><span class="ico">📦</span>
-    <span class="txt"><b>${esc(c.nom)}</b><small>Compraste ${plural(c.cant, 'crédito', 'créditos')} a ${fmtEn(c.costo, monOk(c.mon))}</small></span>
+    <span class="txt"><b>${esc(c.nom)} · ${plural(c.cant, 'crédito', 'créditos')}</b></span>
     <span class="amt">${fmtEn(c.cant * c.costo, monOk(c.mon))}<small>${fechaCorta(c.fecha)}</small></span></button>`;
 }
 function itemPrest(p){
-  const sa = saldoP(p), ab = abonado(p), m = monOk(p.mon);
-  return `<button class="item wrap${sa <= 0 ? ' off' : ''}" data-act="editPrest" data-id="${p.id}"><span class="ico">🤝</span>
-    <span class="txt"><b>${esc(p.persona)}</b><small>Prestaste ${fmtEn(p.monto, m)} el ${fechaCorta(p.fecha)}${ab ? ' · abonó ' + fmtEn(ab, m) : ''}${nFotos(p)}</small></span>
-    <span class="amt">${sa > 0 ? fmtEn(sa, m) : '✓ Pagado'}<small>${sa > 0 ? 'te debe' : ''}</small></span></button>`;
+  const sa = saldoP(p), m = monOk(p.mon);
+  return `<button class="item${sa <= 0 ? ' off' : ''}" data-act="editPrest" data-id="${p.id}"><span class="ico">🤝</span>
+    <span class="txt"><b>${esc(p.persona)}</b></span>
+    <span class="amt">${sa > 0 ? fmtEn(sa, m) : '✓ Pagado'}<small>${fechaCorta(p.fecha)}</small></span></button>`;
 }
 
 /* Tarjetas (24/11/2026) */
@@ -1065,35 +1151,18 @@ function inversionHtml(){
     <div class="proy">Desde que empezaste: compraste ${fmt(histInv)} en créditos y has ganado ${fmt(histGan)} en ventas${histInv > 0 ? ' (' + Math.round(histGan / histInv * 100) + '% de lo invertido)' : ''}.<br><small>El «si los vendes» usa lo que cobras en promedio por crédito.</small></div></section>`;
 }
 
-function vNegocio(){
-  const ym = mesActual(), nm = negocioMes(ym), fia = teDebenFiado();
-  const activos = S.clientes.filter(c => estadoCli(c) !== 'baja'), bajas = S.clientes.filter(c => estadoCli(c) === 'baja'), pr = porRenovar();
-  const deudores = S.clientes.filter(c => deudaCli(c) > 0.004), fiadoSuelto = S.ventas.filter(v => pendienteV(v) > 0 && !S.clientes.some(c => c.id === v.cli));
-  let h = `<section class="card"><div class="lbl">Cobrado en ${nombreMes(ym)}</div><div class="big">${fmt(nm.cobrado)}</div>
-    <div class="split"><span>🛒 Vendido <b>${fmt(nm.ventas)}</b></span><span>💵 Ganancia <b class="pos">${fmt(nm.ventas - nm.costo)}</b></span><span>📦 Créditos comprados <b>${fmt(nm.compras)}</b></span>${fia > 0 ? `<span>📝 Fiado <b class="rojo">${fmt(fia)}</b></span>` : ''}</div>
-    <div class="proy">${plural(activos.length, 'cliente activo', 'clientes activos')}${S.productos.length ? ' · ' + S.productos.map(p => esc(p.nombre) + ': ' + plural(p.stock, 'crédito', 'créditos')).join(' · ') : ''}</div></section>
-  ${inversionHtml()}
-  <div class="neg-btns"><button class="btn primary" data-act="nCli">👤 Cliente nuevo</button><button class="btn" data-act="nVCred">💳 Vender créditos</button></div>`;
-  if(S.clientes.length > 3) h += `<input class="inp search" id="buscarCli" type="search" placeholder="🔍 Buscar cliente (nombre o teléfono)" autocomplete="off">`;
-  if(pr.length) h += `<section class="card"><h3>Por renovar <small>vencidos o vencen en ${diasAviso()} días</small></h3>${pr.map(c => filaCli(c, true)).join('')}</section>`;
-  if(deudores.length || fiadoSuelto.length) h += `<section class="card"><h3>Te deben (fiado) <small>${fmt(fia)}</small></h3>${deudores.map(c => filaCli(c, false)).join('')}${fiadoSuelto.length ? `<div class="list">${fiadoSuelto.map(itemVenta).join('')}</div>` : ''}</section>`;
-  const resto = activos.filter(c => !pr.includes(c)).sort((a,b) => norm(a.nombre) < norm(b.nombre) ? -1 : 1);
-  if(resto.length) h += `<section class="card"><h3>Clientes <small>${resto.length}</small></h3>${resto.map(c => filaCli(c, false)).join('')}</section>`;
-  if(!S.clientes.length) h += S.productos.length
-    ? `<div class="card empty"><div class="e">👤</div>Toca <b>👤 Cliente nuevo</b> para anotar a cada cliente con su paquete. Cuando le toque renovar te sale arriba en «Por renovar» y tú decides: <b>✅ Renovó</b> o <b>❌ No renovó</b>.</div>`
-    : `<div class="card empty"><div class="e">📺</div>Primero agrega abajo lo que vendes (ej. Netflix): cuánto te cuesta cada crédito, cuántos tienes y tus paquetes.</div>`;
-  h += `<section class="card"><h3>Productos y paquetes <span class="h3-links">${S.productos.length ? '<button class="link" data-act="nCompra">📦 Compré</button>' : ''}<button class="link" data-act="nProd">+ Agregar</button></span></h3>${S.productos.length
-    ? `<div class="list">${S.productos.map(itemProd).join('')}</div>`
-    : '<p class="hint" style="margin:0">Agrega lo que vendes: cuánto te cuesta cada crédito, cuántos créditos tienes y tus paquetes (cuántos créditos usa cada uno y a cuánto lo vendes).</p>'}</section>`;
-  if(nm.vs.length) h += `<section class="card"><h3>Ventas del mes <small>${nm.vs.length}</small></h3><div class="list">${nm.vs.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
-  if(nm.cs.length) h += `<section class="card"><h3>Compras de créditos del mes <small>${nm.cs.length}</small></h3><div class="list">${nm.cs.slice().sort(ordenG).map(itemCompraN).join('')}</div></section>`;
-  if(bajas.length) h += `<details class="card bajas"><summary><b>No renovaron</b> <small>${bajas.length}</small></summary>${bajas.map(c => filaCli(c, false)).join('')}</details>`;
+function vNegocio(){   // igual que la ayudante + lo del dueño abajo (productos, otras ventas, prestamos)
+  const ym = mesActual(), nm = negocioMes(ym);
+  let h = clientesTop() + clientesListas();
+  h += `<section class="card"><h3>📺 Productos <span class="h3-links">${S.productos.length ? '<button class="link" data-act="nCompra">📦 Compré</button>' : ''}<button class="link" data-act="nProd">+ Agregar</button></span></h3>${S.productos.length
+    ? `<div class="list">${S.productos.map(itemProd).join('')}</div>` : ''}</section>`;
+  const otras = nm.vs.filter(v => !S.clientes.some(c => c.id === v.cli) && !(pendienteV(v) > 0));   // las de clientes se ven en su ficha
+  if(otras.length) h += `<section class="card"><h3>🧾 Otras ventas del mes <small>${otras.length}</small></h3><div class="list">${otras.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
+  if(nm.cs.length) h += `<section class="card"><h3>📦 Compras del mes <small>${nm.cs.length}</small></h3><div class="list">${nm.cs.slice().sort(ordenG).map(itemCompraN).join('')}</div></section>`;
   const deben = teDeben(), act = S.prestamos.filter(p => saldoP(p) > 0), pag = S.prestamos.filter(p => saldoP(p) <= 0);
-  h += `<section class="card"><h3>Préstamos que hiciste <button class="link" style="margin:0" data-act="nPrest">+ Prestar</button></h3>
-    ${deben > 0 ? `<div class="deben"><span>🤝 Te deben en total</span><b>${fmt(deben)}</b></div>` : ''}
-    ${S.prestamos.length ? `<div class="list">${act.concat(pag).map(itemPrest).join('')}</div>`
-      : '<p class="hint" style="margin:0">Cuando le prestes dinero a alguien, anótalo aquí. No cuenta como gasto: se suma aparte en «Te deben», y vas anotando los abonos.</p>'}</section>`;
-  return h + `<p class="foot">Nada se renueva solo: tú tocas «Renovó» o «No renovó». Lo cobrado del mes se suma a «Te queda» en Inicio (puedes apagarlo en Ajustes); lo fiado se suma cuando te pagan. Toca cualquier cosa con ✎ para editarla.</p>`;
+  h += `<section class="card"><h3>🤝 Préstamos ${deben > 0 ? `<small>${fmt(deben)}</small>` : ''}<button class="link" style="margin:0 0 0 auto" data-act="nPrest">+ Prestar</button></h3>
+    ${S.prestamos.length ? `<div class="list">${act.concat(pag).map(itemPrest).join('')}</div>` : ''}</section>`;
+  return h;
 }
 
 /* ================= Leer fotos en el telefono (23/11/2026): montos de pagos y usuario/contraseña =================
@@ -1745,22 +1814,9 @@ async function enviarAlDueno(){   // ayudante: archivo con todos sus clientes y 
   if(ok){ AYU.enviado = datos.enviado; localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); render(); toast('📤 Listo: mándaselo a ' + AYU.dueno); }
 }
 function vAyudante(){
-  const pr = porRenovar(), pend = ventasSinEnviar(), ym = mesActual(), vs = S.ventas.filter(v => v.fecha.startsWith(ym));
-  const cobrado = vs.reduce((a,v) => a + enB(pagadoV(v), v.mon), 0), fia = teDebenFiado();
-  let h = `<section class="card"><div class="lbl">👥 Ayudante de ${esc(AYU.dueno)}</div><div class="big">${esc(AYU.nombre)}</div>
-    <div class="split"><span>🏦 Cobras en <b>${esc(AYU.cuenta)}</b></span><span>💵 Este mes <b>${fmt(cobrado)}</b></span>${fia > 0 ? `<span>📝 Fiado <b class="rojo">${fmt(fia)}</b></span>` : ''}</div>
-    ${AYU.nube ? nubeAyuHtml() : pend.length ? `<div class="aviso warn" style="margin:10px 0 0"><span>📤 Tienes ${plural(pend.length, 'cobro', 'cobros')} sin enviar a ${esc(AYU.dueno)}</span></div>` : `<div class="proy">${AYU.enviado ? '✓ Todo enviado (' + fechaCorta(AYU.enviado.slice(0, 10)) + ')' : 'Aún no has enviado nada'}</div>`}</section>
-  <div class="neg-btns"><button class="btn primary" data-act="nCli">👤 Cliente nuevo</button><button class="btn" data-act="ayuEnviar">📤 Enviar a ${esc(AYU.dueno)}</button></div>`;
-  if(S.clientes.length > 3) h += `<input class="inp search" id="buscarCli" type="search" placeholder="🔍 Buscar cliente (nombre o teléfono)" autocomplete="off">`;
-  if(pr.length) h += `<section class="card"><h3>Por renovar <small>vencidos o vencen en ${diasAviso()} días</small></h3>${pr.map(c => filaCli(c, true)).join('')}</section>`;
-  h += fiadoSeccionAyu();   // el fiado va aqui mismo, en Clientes
-  const resto = S.clientes.filter(c => estadoCli(c) !== 'baja' && !pr.includes(c)).sort((a,b) => norm(a.nombre) < norm(b.nombre) ? -1 : 1);
-  if(resto.length) h += `<section class="card"><h3>Clientes <small>${resto.length}</small></h3>${resto.map(c => filaCli(c, false)).join('')}</section>`;
-  if(!S.clientes.length) h += `<div class="card empty"><div class="e">👤</div>Toca <b>👤 Cliente nuevo</b>: nombre, su paquete y lo que te pagó. Cuando le toque renovar te sale en «Por renovar». Al terminar el día toca <b>📤 Enviar a ${esc(AYU.dueno)}</b> y mándale el archivo.</div>`;
-  if(vs.length) h += `<section class="card"><h3>Mis cobros del mes <small>${vs.length}</small></h3><div class="list">${vs.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
-  const bajas = S.clientes.filter(c => estadoCli(c) === 'baja');
-  if(bajas.length) h += `<details class="card bajas"><summary><b>No renovaron</b> <small>${bajas.length}</small></summary>${bajas.map(c => filaCli(c, false)).join('')}</details>`;
-  return h;
+  const pend = ventasSinEnviar();
+  let h = !AYU.nube && pend.length ? `<div class="aviso warn"><span>📤 ${plural(pend.length, 'cobro', 'cobros')} sin enviar</span><button class="btn small" data-act="ayuEnviar">Enviar</button></div>` : '';
+  return h + clientesTop() + clientesListas();
 }
 function paquetesVendidos(ventas){   // cuantos de cada paquete (y sueltos) en esas ventas
   const porPaq = {};
@@ -1790,19 +1846,19 @@ function vInicioAyu(){   // compacto: 6 cuadritos tocables, una linea de monedas
     </div>
     <div class="kpis-pie">C$ ${fmtEn(r.enC, 'C$').replace('C$ ', '')} · $ ${fmtEn(r.enU, 'US$').replace('$ ', '')} · total generado <b>${fmt(rt.vendido)}</b> (ganancia ${fmt(rt.ganancia)})</div>
     ${AYU.nube ? nubeAyuHtml() : ''}</section>`;
+  const paqs = S.productos.flatMap(p => (p.paquetes || []).map(k => ({p, k, d: Math.floor(Math.max(0, stockVer(p)) / (k.cred || 1))})));
+  if(paqs.length) h += `<section class="card"><h3>💳 Paquetes disponibles</h3><div class="paq-ini">${paqs.map(x => `<button class="kpi" data-act="tab" data-tab="creditos"><small>${esc(S.productos.length > 1 ? x.p.nombre + ' · ' + x.k.n : x.k.n)}</small><b class="${x.d <= 1 ? 'rojo' : 'pos'}">${x.d}</b></button>`).join('')}</div></section>`;
   if(pr.length) h += `<section class="card"><h3>⏰ Por renovar <small>${pr.length}</small>${pr.length > 3 ? ' <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Ver todos</button>' : ''}</h3>${pr.slice(0, 3).map(c => filaCli(c, true)).join('')}</section>`;
-  const ult = S.ventas.slice().sort(ordenG).slice(0, 6);
-  if(ult.length) h += `<section class="card"><h3>Últimos cobros <button class="link" style="margin:0" data-act="tab" data-tab="negocio">Ver</button></h3><div class="list">${ult.map(itemVenta).join('')}</div></section>`;
+  if(mes.length) h += `<section class="card"><h3>🧾 Cobros del mes <small>${mes.length}</small></h3><div class="list">${mes.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
   return h;
 }
-function fiadoSeccionAyu(){
+function fiadoSeccion(){   // 📝 Fiado: quien debe, cuanto, y «Pagó»
   const pend = S.ventas.filter(v => pendienteV(v) > 0).sort((a,b) => (a.promesa || a.fecha) < (b.promesa || b.fecha) ? -1 : 1);
   if(!pend.length) return '';
-  return `<section class="card"><h3>📝 Fiado <small>${fmt(teDebenFiado())}</small></h3><div class="fiados">${pend.map(v => {
-    const vence = v.promesa ? diasHasta(v.promesa) : null;
-    return `<div class="fia"><span><b>${esc(v.cliente || v.nom)}</b> · ${fechaCorta(v.fecha)}<br><small>${esc(v.paqN || v.nom)}${v.promesa ? ' · pagará el ' + fechaCorta(v.promesa) + (vence < 0 ? ' (atrasado)' : '') : ''}${v.nota ? '<br>' + esc(v.nota) : ''}</small></span>
-      <b>${fmtEn(pendienteV(v), monOk(v.mon))}</b><button type="button" class="btn small primary" data-act="pagoFiado" data-id="${v.id}">💵 Pagó</button></div>`; }).join('')}</div></section>`;
+  return `<section class="card"><h3>📝 Fiado <small>${fmt(teDebenFiado())}</small></h3><div class="fiados">${pend.map(v =>
+    `<div class="fia"><span><b>${esc(v.cliente || v.nom)}</b></span><b>${fmtEn(pendienteV(v), monOk(v.mon))}</b><button type="button" class="btn small primary" data-act="pagoFiado" data-id="${v.id}">💵 Pagó</button></div>`).join('')}</div></section>`;
 }
+const fiadoSeccionAyu = fiadoSeccion;
 function vFiadoAyu(){
   const pend = S.ventas.filter(v => pendienteV(v) > 0).sort((a,b) => (a.promesa || a.fecha) < (b.promesa || b.fecha) ? -1 : 1);
   const pagados = S.ventas.filter(v => v.fiado && pendienteV(v) <= 0).sort(ordenG).slice(0, 15), tot = teDebenFiado();
@@ -1816,42 +1872,33 @@ function vFiadoAyu(){
   if(pagados.length) h += `<details class="card bajas"><summary><b>Ya pagaron</b> <small>${pagados.length}</small></summary><div class="list">${pagados.map(itemVenta).join('')}</div></details>`;
   return h;
 }
-function vCreditosAyu(){   // la ayudante: disponibles, precios, costos y ganancia
-  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), sueltas = mes.filter(v => v.tipo === 'creditos'), r = resumenMesAyu(mes), pv = paquetesVendidos(mes);
+function vCreditosAyu(){   // cuadritos arriba y un renglon por paquete
+  const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), r = resumenMesAyu(mes), pv = paquetesVendidos(mes);
   const dispTot = S.productos.reduce((a,p) => a + Math.max(0, stockVer(p)), 0);
-  let h = `<section class="card"><div class="lbl">💳 Créditos disponibles</div><div class="big ${dispTot <= 5 ? 'neg' : ''}">${plural(dispTot, 'crédito', 'créditos')}</div>
-    <div class="split"><span>Usados en ${MESES[+ym.slice(5) - 1]}: <b>${r.cred}</b> (${r.cred - pv.credSueltos} en paquetes, ${pv.credSueltos} sueltos)</span></div>
-    <div class="split" style="margin-top:6px"><span>🛒 Vendido <b>${fmt(r.vendido)}</b></span><span>💳 Costo total en créditos <b>${fmt(r.costo)}</b></span><span>💰 Ganancia total <b class="${r.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(r.ganancia)}</b></span></div>
-    <div class="split" style="margin-top:6px"><span>💵 Cobrado <b>${fmt(r.cobrado)}</b></span><span>🏦 En <b>${esc(AYU.cuenta)}</b></span></div></section>`;
+  let h = `<section class="card kpis-card"><div class="kpis-top"><span>${nombreMes(ym)}</span><span>🏦 ${esc(AYU.cuenta)}</span></div><div class="kpis k3">
+      <div class="kpi"><small>💳 Disponibles</small><b class="${dispTot <= 5 ? 'rojo' : ''}">${dispTot}</b></div>
+      <div class="kpi"><small>🔻 Usados</small><b>${r.cred}</b></div>
+      <div class="kpi"><small>🛒 Vendido</small><b>${fmt(r.vendido)}</b></div>
+      <div class="kpi"><small>📦 Costo</small><b>${fmt(r.costo)}</b></div>
+      <div class="kpi"><small>💰 Ganancia</small><b class="${r.ganancia >= 0 ? 'pos' : 'rojo'}">${fmt(r.ganancia)}</b></div>
+      <div class="kpi"><small>💵 Cobrado</small><b class="pos">${fmt(r.cobrado)}</b></div></div></section>`;
   h += S.productos.map(p => { const m = monOk(p.mon), cu = +p.costo || 0, st = stockVer(p);
-    return `<section class="card"><h3>${esc(p.nombre)} <small>costo por crédito ${fmtEn(cu, m)}</small></h3><div class="paq-mes">${(p.paquetes || []).map(k => {
-      const o = pv.porPaq[k.id] || {n: 0, cred: 0}, cuesta = k.cred * cu, gana = k.precio - cuesta, disp = Math.floor(Math.max(0, st) / (k.cred || 1));
-      return `<div class="pm"><span><b>${esc(k.n)}</b><small>Cliente final ${fmtEn(k.precio, m)} · ${fmtEn(k.precio / (k.cred || 1), m)} por crédito<br>${plural(k.cred, 'crédito', 'créditos')} · cuesta ${fmtEn(cuesta, m)} · ganas <b class="${gana >= 0 ? 'pos' : 'rojo'}">${fmtEn(gana, m)}</b></small></span><span class="pm-n"><b class="${disp <= 1 ? 'rojo' : 'pos'}">${disp}</b><small>disponibles</small></span><span class="pm-n"><b>${o.n}</b><small>${o.n === 1 ? 'vendido' : 'vendidos'}</small></span></div>`; }).join('')}
-      <div class="pm tot"><span><b>Créditos sueltos</b><small>con «Vender créditos» · costo ${fmtEn(cu, m)} c/u</small></span><span class="pm-n"><b>${Math.max(0, st)}</b><small>disponibles</small></span><span class="pm-n"><b>${pv.credSueltos}</b><small>vendidos</small></span></div></div></section>`; }).join('')
-    || '<div class="card empty">Aún no hay productos.</div>';
-  h += `<button class="btn primary" data-act="nVCred" style="margin:0 0 12px">💳 Vender créditos</button>`;
-  if(sueltas.length) h += `<section class="card"><h3>Ventas de créditos sueltos del mes <small>${sueltas.length}</small></h3><div class="list">${sueltas.slice().sort(ordenG).map(itemVenta).join('')}</div></section>`;
-  const antes = S.ventas.filter(v => v.tipo === 'creditos' && !v.fecha.startsWith(ym)).sort(ordenG).slice(0, 20);
-  if(antes.length) h += `<details class="card bajas"><summary><b>Créditos sueltos de meses anteriores</b> <small>${antes.length}</small></summary><div class="list">${antes.map(itemVenta).join('')}</div></details>`;
+    return `<section class="card"><h3>📺 ${esc(p.nombre)} <small>${fmtEn(cu, m)} c/u</small></h3><div class="paq-mes">${(p.paquetes || []).map(k => {
+      const o = pv.porPaq[k.id] || {n: 0}, gana = k.precio - k.cred * cu, disp = Math.floor(Math.max(0, st) / (k.cred || 1));
+      return `<div class="pm"><span><b>${esc(k.n)}</b><small>${fmtEn(k.precio, m)} · ganas ${fmtEn(gana, m)}</small></span><span class="pm-n"><b class="${disp <= 1 ? 'rojo' : 'pos'}">${disp}</b><small>quedan</small></span><span class="pm-n"><b>${o.n}</b><small>${o.n === 1 ? 'vendido' : 'vendidos'}</small></span></div>`; }).join('')}</div></section>`; }).join('');
   return h;
 }
 function vAjustesAyu(){
-  const a = S.ajustes;
-  return `<section class="card"><h3>👥 Modo ayudante</h3>
-    <p class="hint" style="margin-top:0">Eres ayudante de <b>${esc(AYU.dueno)}</b>. Cobras en <b>${esc(AYU.cuenta)}</b>. ${AYU.nube ? 'Lo que anotas le llega solo (☁️ entraste como ' + esc(AYU.nube.email) + '). El botón de abajo manda además las fotos de los pagos.' : 'Lo que anotas se queda en este teléfono hasta que lo envías.'}</p>
-    <button class="btn primary" data-act="ayuEnviar">📤 Enviar mis clientes y cobros a ${esc(AYU.dueno)}</button>
-    <button class="btn" data-act="importar">🔄 Cargar acceso nuevo (productos y precios)</button></section>
-  ${actHtml()}
-  ${pinHtml()}
-  <section class="card"><div class="setrow"><label>Modo día / noche</label><select class="inp" data-set="tema">
-      <option value="auto"${a.tema === 'auto' ? ' selected' : ''}>Como el teléfono</option><option value="light"${a.tema === 'light' ? ' selected' : ''}>Día</option><option value="dark"${a.tema === 'dark' ? ' selected' : ''}>Noche</option></select></div>
-    <div class="setrow"><label>Avisar vencimiento<small>Días antes</small></label><select class="inp" data-set="avisoDias">${[3, 5, 7].map(n => `<option value="${n}"${diasAviso() === n ? ' selected' : ''}>${n} días antes</option>`).join('')}</select></div></section>
-  <section class="card guia"><h3>Cómo usarla</h3>
-    <details><summary>👤 Cliente nuevo</summary><p>Toca <b>👤 Cliente nuevo</b>: nombre, teléfono, su paquete (puedes poner varios o más meses), el total, la moneda, si pagó o es fiado y la foto del pago (se lee sola). Si tiene usuario y contraseña, ponlos (o pega la lista M3U). Al guardar sale su recibo para mandárselo.</p></details>
-    <details><summary>✅ Renovar</summary><p>Cuando a un cliente le falten pocos días sale en <b>«Por renovar»</b>: <b>✅ Renovó</b>, <b>❌ No renovó</b> o <b>💬 Avisar</b> (mensaje listo para WhatsApp). Tocando el cliente ves su ficha y con <b>✅ Renovó…</b> cobras con detalle.</p></details>
-    <details><summary>📤 Enviar a ${esc(AYU.dueno)}</summary><p>Toca <b>📤 Enviar</b> y manda el archivo por WhatsApp a ${esc(AYU.dueno)}. Puedes enviarlo las veces que quieras: no se duplica nada.</p></details>
-  </section>
-  <section class="card"><button class="btn danger" data-act="ayuSalir">Salir del modo ayudante</button></section>`;
+  const a = S.ajustes, p = pinGuardado();
+  return `<section class="card aj-ayu"><h3>👥 ${esc(AYU.nombre)} · ${esc(AYU.cuenta)}</h3>
+    <button class="btn primary" data-act="ayuEnviar">📤 Enviar a ${esc(AYU.dueno)}</button>${AYU.nube ? '' : '<button class="btn" data-act="importar">🔄 Cargar acceso nuevo</button>'}</section>
+  <section class="card aj-ayu">
+    <div class="setrow"><label>🌗 Día / noche</label><select class="inp" data-set="tema">
+      <option value="auto"${a.tema === 'auto' ? ' selected' : ''}>Automático</option><option value="light"${a.tema === 'light' ? ' selected' : ''}>Día</option><option value="dark"${a.tema === 'dark' ? ' selected' : ''}>Noche</option></select></div>
+    <div class="setrow"><label>⏰ Avisar</label><select class="inp" data-set="avisoDias">${[3, 5, 7].map(n => `<option value="${n}"${diasAviso() === n ? ' selected' : ''}>${n} días antes</option>`).join('')}</select></div>
+    <div class="setrow"><label>🔒 PIN</label><span class="aj-b">${p ? '<button class="btn small" data-act="pinCambiar">Cambiar</button><button class="btn small" data-act="pinQuitar">Quitar</button>' : '<button class="btn small primary" data-act="pinPoner">Poner PIN</button>'}</span></div>
+    <div class="setrow"><label>📲 ${esc(APP_VERSION)}</label><span class="aj-b"><button class="btn small" data-act="buscarAct">🔄 Actualizar</button></span></div></section>
+  <button class="btn danger" data-act="ayuSalir">Salir del modo ayudante</button>`;
 }
 
 /* ================= ☁️ Automático con Firebase (24/11/2026) =================
@@ -2077,7 +2124,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1729';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261124-1752';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -3722,7 +3769,8 @@ document.addEventListener('click', ev => {
   if(!b || b.closest('#sheet')) return;
   const act = b.dataset.act;
   switch(act){
-    case 'tab': tab = b.dataset.tab; if(tab !== 'movs'){ filtroCat = null; busqueda = ''; } render(); $('#main').scrollTop = 0; break;
+    case 'lupa': buscaCli = !buscaCli; render(); if(buscaCli && $('#buscarCli')) $('#buscarCli').focus(); break;
+    case 'tab': buscaCli = false; tab = b.dataset.tab; if(tab !== 'movs'){ filtroCat = null; busqueda = ''; } render(); $('#main').scrollTop = 0; window.scrollTo(0, 0); break;
     case 'mesPrev': mes = addYM(mes, -1); render(); break;
     case 'mesSig': if(mes < mesActual()){ mes = addYM(mes, 1); render(); } break;
     case 'nuevo': AYU && tab === 'inicio' ? abrirCliente(null) : tab === 'creditos' ? abrirVentaCred() : tab === 'finanzas' ? abrirMenuFin() : tab === 'negocio' ? (AYU ? abrirCliente(null) : abrirMenuNeg()) : tab === 'fijos' ? abrirFijo(null) : (tab === 'movs' && verMov === 'ingresos' && !filtroCat) ? abrirIngreso(null) : abrirGasto(null); break;
@@ -3771,7 +3819,7 @@ document.addEventListener('click', ev => {
     case 'editCompraN': { const c = S.comprasNeg.find(x => x.id === b.dataset.id); if(c) abrirCompraNeg(c); break; }
     case 'editPrest': { const p = S.prestamos.find(x => x.id === b.dataset.id); if(p) abrirPrest(p); break; }
     case 'verEn': S.ajustes.verEn = b.dataset.v; render(); break;
-    case 'filtroCat': filtroCat = b.dataset.cat; busqueda = ''; verMov = 'todo'; tab = 'movs'; render(); $('#main').scrollTop = 0; break;
+    case 'filtroCat': filtroCat = b.dataset.cat; busqueda = ''; verMov = 'todo'; tab = 'movs'; render(); $('#main').scrollTop = 0; window.scrollTo(0, 0); break;
     case 'quitarFiltro': filtroCat = null; render(); break;
     case 'excluir': if(!S.ajustes.excluidos.includes(b.dataset.k)) S.ajustes.excluidos.push(b.dataset.k); save(); render(); toast('Ya no cuenta como hormiga'); break;
     case 'incluir': S.ajustes.excluidos = S.ajustes.excluidos.filter(k => k !== b.dataset.k); save(); render(); break;
