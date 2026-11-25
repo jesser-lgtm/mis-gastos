@@ -636,7 +636,7 @@ body.modo-ayu main#main[data-tab="inicio"] .sem-card{margin-bottom:0}
   <button data-act="tab" data-tab="movs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>Movimientos</button>
   <button data-act="tab" data-tab="fijos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.5 20.5 6 17 9.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5 3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/></svg>Fijos</button>
   <button data-act="tab" data-tab="negocio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.6-3.4 3-5.3 6-5.3s5.4 1.9 6 5.3"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.3c2.4.1 4.1 1.8 4.5 4.7"/></svg>Clientes</button>
-  <button data-act="tab" data-tab="ingAyu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.4c-.5-.9-1.6-1.4-2.8-1.4-1.6 0-2.8.8-2.8 2 0 2.8 5.8 1.4 5.8 4.1 0 1.3-1.3 2.1-3 2.1-1.3 0-2.4-.5-2.9-1.4"/><path d="M12 6v2M12 16v2"/></svg>Ingresos</button>
+  <button data-act="tab" data-tab="ingAyu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.4c-.5-.9-1.6-1.4-2.8-1.4-1.6 0-2.8.8-2.8 2 0 2.8 5.8 1.4 5.8 4.1 0 1.3-1.3 2.1-3 2.1-1.3 0-2.4-.5-2.9-1.4"/><path d="M12 6v2M12 16v2"/></svg>Me pagaron</button>
   <button data-act="tab" data-tab="fiado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h10.5a2 2 0 0 1 2 2v15l-3-1.8-3 1.8-3-1.8-3 1.8V5.5a2 2 0 0 1 .5-2"/><path d="M9 8.5h6M9 12h6M9 15.5h3.5"/></svg>Fiado</button>
   <button data-act="tab" data-tab="creditos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19"/><path d="M6.5 14.5h4"/></svg>Créditos</button>
   <button data-act="tab" data-tab="finanzas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11"/><path d="M10 20V5"/><path d="M16 20v-8"/><path d="M21.5 20h-19"/><path d="M14.5 7.5 17 5l2.5 2.5"/></svg>Finanzas</button>
@@ -927,7 +927,7 @@ function render(){
   const conMes = !AYU && (tab === 'inicio' || tab === 'movs');
   $('#mesnav').hidden = !conMes;
   $('#titulo').closest('header').classList.toggle('apretado', tab === 'movs');
-  $('#titulo').textContent = {inicio:'Mis gastos', movs:'Movimientos', fijos:'Fijos y suscripciones', negocio:'Clientes', fiado:'Fiado', creditos:'Créditos', ingAyu:'Ingresos', finanzas:'Finanzas', hormiga:'Gastos hormiga', ajustes:'Ajustes'}[tab];
+  $('#titulo').textContent = {inicio:'Mis gastos', movs:'Movimientos', fijos:'Fijos y suscripciones', negocio:'Clientes', fiado:'Fiado', creditos:'Créditos', ingAyu:'Lo que me pagaron', finanzas:'Finanzas', hormiga:'Gastos hormiga', ajustes:'Ajustes'}[tab];
   if(AYU && tab === 'inicio') $('#titulo').textContent = 'Inicio';
   $('#mesLabel').textContent = nombreMes(mes);
   $('#mesSig').disabled = mes >= mesActual();
@@ -1757,14 +1757,14 @@ function ayudantesHtml(){
     <p class="hint" style="margin-top:0">Otra persona agrega clientes y cobra en su cuenta de banco desde su teléfono. Solo ve sus propios clientes, nunca lo tuyo. Se pasa solo (☁️ automático) o por archivos.</p>
     ${nubeDuenoHtml()}
     ${S.ayudantes.length ? `<div class="list">${S.ayudantes.map(a => { const nc = S.clientes.filter(c => c.ayu === a.id).length, nv = S.ventas.filter(v => v.ayu === a.id).length, ingM = sumaIng((a.ingresos || []).filter(i => i.fecha.startsWith(mesActual())));
-      return `<button class="item wrap" data-act="editAyu" data-id="${a.id}"><span class="ico">👥</span><span class="txt"><b>${esc(a.nombre)}</b><small>🏦 ${esc(a.cuenta)} · ${plural(nc, 'cliente', 'clientes')} · ${plural(nv, 'cobro', 'cobros')}${(a.ingresos || []).length ? ' · 💰 ingresos del mes ' + fmt(ingM) : ''}<br>${a.ultimaCarga ? 'Último envío cargado: ' + fechaCorta(a.ultimaCarga.slice(0, 10)) : 'Aún no te ha enviado nada'}</small></span></button>`; }).join('')}</div>
+      return `<button class="item wrap" data-act="editAyu" data-id="${a.id}"><span class="ico">👥</span><span class="txt"><b>${esc(a.nombre)}</b><small>🏦 ${esc(a.cuenta)} · ${plural(nc, 'cliente', 'clientes')} · ${plural(nv, 'cobro', 'cobros')}${(a.ingresos || []).length ? ' · 💰 le pagaron este mes ' + fmt(ingM) : ''}<br>${a.ultimaCarga ? 'Último envío cargado: ' + fechaCorta(a.ultimaCarga.slice(0, 10)) : 'Aún no te ha enviado nada'}</small></span></button>`; }).join('')}</div>
       <button class="btn" data-act="importar">📥 Cargar archivo de un ayudante</button>` : ''}
     ${!S.ajustes.nube && !S.ayudantes.length ? '<button class="btn ghost" data-act="ayuEntrar">🙋 Soy ayudante: entrar con mi correo</button>' : ''}</section>`;
 }
 function abrirAyudante(a){
   const e = a || {nombre: '', cuenta: ''};
   abrirSheet(`<h2>${a ? '👥 ' + esc(a.nombre) : 'Nuevo ayudante'}</h2>
-    ${a && (a.ingresos || []).length ? `<div class="lbl2">💰 Sus ingresos <small>${fmt(sumaIng(a.ingresos.filter(i => i.fecha.startsWith(mesActual()))))} este mes</small></div><div class="list ri-list">${a.ingresos.slice().sort((x,y) => x.fecha < y.fecha ? 1 : -1).slice(0, 30).map(i => `<div class="item ing"><span class="ico">${icoCta(i.cta)}</span><span class="txt"><b>${esc(i.desc || i.cta || 'Depósito')}</b>${i.cta && i.desc ? `<small class="cli-pago">${esc(i.cta)}</small>` : ''}</span><span class="amt">+${fmtEn(i.monto, monOk(i.mon))}<small>${fechaCorta(i.fecha)}</small></span></div>`).join('')}</div>` : ''}
+    ${a && (a.ingresos || []).length ? `<div class="lbl2">💰 Lo que le pagaron a ella <small>${fmt(sumaIng(a.ingresos.filter(i => i.fecha.startsWith(mesActual()))))} este mes</small></div><div class="list ri-list">${a.ingresos.slice().sort((x,y) => x.fecha < y.fecha ? 1 : -1).slice(0, 30).map(i => `<div class="item ing"><span class="ico">${icoCta(i.cta)}</span><span class="txt"><b>${esc(i.desc || i.cta || 'Pago')}</b>${i.cta && i.desc ? `<small class="cli-pago">${esc(i.cta)}</small>` : ''}</span><span class="amt">+${fmtEn(i.monto, monOk(i.mon))}<small>${fechaCorta(i.fecha)}</small></span></div>`).join('')}</div>` : ''}
     ${a ? `<button class="btn primary" id="ayEnv" style="margin:0 0 6px">📤 Mandarle su acceso otra vez</button><p class="hint" style="margin-top:0">Mándaselo de nuevo cuando cambies productos, paquetes o precios.</p>` : ''}
     <div class="lbl2">Nombre</div><input id="ayNom" class="inp" placeholder="Ej. María" value="${esc(e.nombre)}" autocomplete="off">
     <div class="lbl2">Cuenta de banco donde cobra</div><input id="ayCta" class="inp" placeholder="Ej. BAC de María" value="${esc(e.cuenta)}" autocomplete="off">
@@ -1937,7 +1937,7 @@ function limpiarIngAyu(x){
 }
 const sumaIng = l => l.reduce((a,i) => a + enB(i.monto, i.mon), 0);
 function itemIngAyu(i){   // nombre (o cuenta) y, debajo, la cuenta
-  return `<button class="item ing" data-act="editIngAyu" data-id="${i.id}"><span class="ico">${icoCta(i.cta)}</span><span class="txt"><b>${esc(i.desc || i.cta || 'Depósito')}</b>${i.cta && i.desc ? `<small class="cli-pago">${esc(i.cta)}</small>` : ''}</span>
+  return `<button class="item ing" data-act="editIngAyu" data-id="${i.id}"><span class="ico">${icoCta(i.cta)}</span><span class="txt"><b>${esc(i.desc || i.cta || 'Pago')}</b>${i.cta && i.desc ? `<small class="cli-pago">${esc(i.cta)}</small>` : ''}</span>
     <span class="amt">+${fmtEn(i.monto, monOk(i.mon))}<small>${fechaCorta(i.fecha)}</small></span></button>`;
 }
 function porCuentaHtml(l){   // un cuadrito por cuenta
@@ -1946,7 +1946,7 @@ function porCuentaHtml(l){   // un cuadrito por cuenta
 function vIngAyu(){   // los depositos a las cuentas de la ayudante, aparte de los cobros de clientes
   const ym = mesActual(), orden = (a,b) => a.fecha === b.fecha ? (b.creado || 0) - (a.creado || 0) : a.fecha < b.fecha ? 1 : -1;
   const mes = S.ingAyu.filter(i => i.fecha.startsWith(ym)).sort(orden), antes = S.ingAyu.filter(i => !i.fecha.startsWith(ym)).sort(orden);
-  let h = `<section class="card kpis-card"><div class="kpis-top"><span style="text-transform:none">💰 Depósitos de ${MESES[+ym.slice(5) - 1]}</span><b class="pos ing-tot">${fmt(sumaIng(mes))}</b></div>${porCuentaHtml(mes)}</section>`;
+  let h = `<section class="card kpis-card"><div class="kpis-top"><span style="text-transform:none">💰 Me pagaron en ${MESES[+ym.slice(5) - 1]}</span><b class="pos ing-tot">${fmt(sumaIng(mes))}</b></div>${porCuentaHtml(mes)}</section>`;
   h += `<section class="card"><h3>🧾 Este mes <small>${mes.length}</small></h3>${mes.length ? `<div class="list">${mes.map(itemIngAyu).join('')}</div>` : ''}</section>`;
   if(antes.length) h += `<details class="card bajas"><summary><b>Meses anteriores</b> <small>${antes.length}</small></summary><div class="list">${antes.map(itemIngAyu).join('')}</div></details>`;
   return h;
@@ -1954,11 +1954,11 @@ function vIngAyu(){   // los depositos a las cuentas de la ayudante, aparte de l
 function abrirIngAyu(x){
   const e = x || {desc: '', monto: '', mon: monBase(), fecha: hoy(), cta: ''};
   let mon = monOk(e.mon), cta = e.cta || '';
-  abrirSheet(`<h2>${x ? 'Editar depósito' : '💰 Nuevo depósito'}</h2>
-    <div class="lbl2">Cuenta</div><div class="seg ing-cta" id="naCta">${CUENTAS_AYU.map(([c, ic]) => `<button type="button" data-c="${esc(c)}" class="${c === cta ? 'on' : ''}">${ic} ${esc(c)}</button>`).join('')}</div>
+  abrirSheet(`<h2>${x ? 'Editar pago' : '💰 Me pagaron'}</h2>
+    <div class="lbl2">¿A cuál de tus cuentas?</div><div class="seg ing-cta" id="naCta">${CUENTAS_AYU.map(([c, ic]) => `<button type="button" data-c="${esc(c)}" class="${c === cta ? 'on' : ''}">${ic} ${esc(c)}</button>`).join('')}</div>
     <div class="lbl2">Moneda y monto</div><div class="seg" id="naMon">${['C$', 'US$'].map(m => `<button type="button" data-m="${m}" class="${m === mon ? 'on' : ''}">${m === 'C$' ? 'Córdobas (C$)' : 'Dólares ($)'}</button>`).join('')}</div>
     <input id="naMonto" class="inp" type="text" inputmode="decimal" placeholder="0" value="${e.monto || ''}" autocomplete="off" style="margin-top:8px">
-    <div class="lbl2">¿De quién?</div><input id="naDesc" class="inp" placeholder="Ej. Carlos" value="${esc(e.desc)}" autocomplete="off">
+    <div class="lbl2">¿Quién te pagó?</div><input id="naDesc" class="inp" placeholder="Ej. Carlos" value="${esc(e.desc)}" autocomplete="off">
     <div class="lbl2">Fecha</div><input id="naFecha" class="inp" type="date" value="${esc(e.fecha)}" max="${hoy()}">
     <button class="btn primary" id="naOk">Guardar</button>${x ? '<button class="btn danger" id="naDel">🗑️ Borrar</button>' : ''}<button class="btn ghost" id="naNo">Cancelar</button>`);
   $('#naCta').onclick = ev => { const b = ev.target.closest('[data-c]'); if(!b) return; cta = b.dataset.c; $('#naCta').querySelectorAll('button').forEach(y => y.classList.toggle('on', y === b)); };
@@ -1966,26 +1966,26 @@ function abrirIngAyu(x){
   $('#naNo').onclick = cerrarSheet;
   $('#naOk').onclick = () => {
     const monto = parseMonto($('#naMonto').value), fecha = $('#naFecha').value;
-    if(!cta){ toast('Elige la cuenta: Banpro, Billetera Móvil o Lafise'); return; }
+    if(!cta){ toast('Elige a cuál de tus cuentas te pagaron'); return; }
     if(!(monto > 0)){ toast('Escribe el monto'); $('#naMonto').focus(); return; }
     if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){ toast('Elige la fecha'); return; }
     const datos = {monto, mon, fecha, cta, desc: $('#naDesc').value.trim().slice(0, 60)};
     if(x) Object.assign(x, datos); else S.ingAyu.push(Object.assign({id: uid(), creado: Date.now()}, datos));
-    save(); cerrarSheet(); render(); toast(x ? '✏️ Depósito cambiado' : '💰 Depósito agregado');
+    save(); cerrarSheet(); render(); toast(x ? '✏️ Pago cambiado' : '💰 Pago anotado');
   };
-  if(x) $('#naDel').onclick = () => { if(!confirm('¿Borrar este depósito?')) return; S.ingAyu = S.ingAyu.filter(i => i !== x); save(); cerrarSheet(); render(); toast('🗑️ Depósito borrado'); };
+  if(x) $('#naDel').onclick = () => { if(!confirm('¿Borrar este pago?')) return; S.ingAyu = S.ingAyu.filter(i => i !== x); save(); cerrarSheet(); render(); toast('🗑️ Pago borrado'); };
 }
 let revisarIng = false, ocultoIng = 0;
 function revisarIngAyu(){   // cada vez que entra: no se cierra hasta que confirme
   if(!AYU) return;
   revisarIng = true;
   const hoyL = S.ingAyu.filter(i => i.fecha === hoy());
-  abrirSheet(`<h2>💰 ¿Ya agregaste tus depósitos?</h2>
-    <div class="ri-hoy">Banpro, Billetera Móvil y Lafise · hoy ${hoyL.length ? `<b>${plural(hoyL.length, 'depósito', 'depósitos')}</b> · <b class="pos">${fmt(sumaIng(hoyL))}</b>` : '<b>ninguno</b>'}</div>
+  abrirSheet(`<h2>💰 ¿Ya anotaste lo que te pagaron?</h2>
+    <div class="ri-hoy">Pagos a tu Banpro, Billetera Móvil y Lafise · hoy ${hoyL.length ? `<b>${plural(hoyL.length, 'pago', 'pagos')}</b> · <b class="pos">${fmt(sumaIng(hoyL))}</b>` : '<b>ninguno</b>'}</div>
     ${porCuentaHtml(hoyL)}
     ${hoyL.length ? `<div class="list ri-list">${hoyL.map(itemIngAyu).join('')}</div>` : ''}
     <button class="btn primary" id="riSi">✅ Sí, ya están todos</button>
-    <button class="btn" id="riAg">➕ Agregar un depósito</button>`);
+    <button class="btn" id="riAg">➕ Anotar un pago</button>`);
   $('#riSi').onclick = () => { revisarIng = false; AYU.revisoIng = new Date().toISOString(); localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); cerrarSheet(); };
   $('#riAg').onclick = () => abrirIngAyu(null);
   $('#sheet').querySelectorAll('[data-act="editIngAyu"]').forEach(b => b.onclick = ev => { ev.stopPropagation(); const x = S.ingAyu.find(i => i.id === b.dataset.id); if(x) abrirIngAyu(x); });
@@ -2248,7 +2248,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261125-1037';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261125-1044';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
