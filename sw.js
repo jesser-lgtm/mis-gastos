@@ -20,6 +20,22 @@ self.addEventListener('activate', e => {
   );
 });
 
+// Notificaciones (25/11/2026): las manda el Worker de Cloudflare; aqui solo se muestran y, al tocarlas, abren la app.
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = {body: e.data ? e.data.text() : ''}; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Mis Gastos', {
+    body: d.body || '', tag: d.tag || 'mis-gastos', icon: './icon-192.png', badge: './icon-192.png', data: {url: './'}
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({type: 'window', includeUncontrolled: true}).then(l => {
+    for (const c of l) if ('focus' in c) return c.focus();
+    return self.clients.openWindow('./');
+  }));
+});
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;

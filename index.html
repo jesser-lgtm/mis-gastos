@@ -2024,6 +2024,7 @@ function vAjustesAyu(){
     <div class="setrow"><label>🌗 Día / noche</label><select class="inp" data-set="tema">
       <option value="auto"${a.tema === 'auto' ? ' selected' : ''}>Automático</option><option value="light"${a.tema === 'light' ? ' selected' : ''}>Día</option><option value="dark"${a.tema === 'dark' ? ' selected' : ''}>Noche</option></select></div>
     <div class="setrow"><label>⏰ Avisar</label><select class="inp" data-set="avisoDias">${[3, 5, 7].map(n => `<option value="${n}"${diasAviso() === n ? ' selected' : ''}>${n} días antes</option>`).join('')}</select></div>
+    ${PUSH_URL ? `<div class="setrow"><label>🔔 Notificaciones</label><span class="aj-b">${notifOn() ? '<button class="btn small" data-act="notifProbar">Probar</button><button class="btn small" data-act="notifApagar">Apagar</button>' : '<button class="btn small primary" data-act="notifActivar">Activar</button>'}</span></div>` : ''}
     <div class="setrow"><label>🔒 PIN</label><span class="aj-b">${p ? '<button class="btn small" data-act="pinCambiar">Cambiar</button><button class="btn small" data-act="pinQuitar">Quitar</button>' : '<button class="btn small primary" data-act="pinPoner">Poner PIN</button>'}</span></div>
     <div class="setrow"><label>📲 ${esc(APP_VERSION)}</label><span class="aj-b"><button class="btn small" data-act="buscarAct">🔄 Actualizar</button></span></div></section>
   <button class="btn danger" data-act="ayuSalir">Salir del modo ayudante</button>`;
@@ -2243,6 +2244,7 @@ async function subirEstadoAyu(){
     const {db} = await cargarFirebase();
     await db.doc(`duenos/${AYU.nube.dueno}/ayudantes/${AYU.ayudanteId}/datos/estado`).set(limpioFs({
       clientes: clientesParaSubir().map(sinFotos), ventas: S.ventas.map(v => Object.assign(sinFotos(v), {cuenta: AYU.cuenta, ayu: AYU.ayudanteId})), ingresos: S.ingAyu.map(limpiarIngAyu).filter(Boolean), actualizado: Date.now()}));
+    avisarDueno();
     AYU.subido = new Date().toISOString(); AYU.enviado = AYU.subido; localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); nubeAyuMsg = '';
   }catch(e){
     nubeAyuMsg = '⏳ ' + errFb(e) + ' Se enviará cuando haya conexión.';
@@ -2253,7 +2255,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261125-1103';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261125-1140';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -2607,6 +2609,7 @@ function vAjustes(){
   </section>
   ${tarjetasHtml()}
   ${ayudantesHtml()}
+  ${notifHtml()}
   ${actHtml()}
   ${pinHtml()}
   ${ES_SERVIDOR ? `<section class="card"><h3>Cuenta</h3>
@@ -3908,6 +3911,9 @@ document.addEventListener('click', ev => {
   const act = b.dataset.act;
   switch(act){
     case 'semDia': { const el = $('#semSel'); if(el) el.innerHTML = `<b>${esc(b.dataset.t)}</b> · ${esc(b.dataset.v)}`; document.querySelectorAll('.sem-c').forEach(x => x.classList.toggle('sel', x === b)); break; }
+    case 'notifActivar': notifActivar(); break;
+    case 'notifProbar': notifProbar(); break;
+    case 'notifApagar': notifApagar(); break;
     case 'lupa': buscaCli = !buscaCli; render(); if(buscaCli && $('#buscarCli')) $('#buscarCli').focus(); break;
     case 'tab': buscaCli = false; tab = b.dataset.tab; if(tab !== 'movs'){ filtroCat = null; busqueda = ''; } render(); $('#main').scrollTop = 0; window.scrollTo(0, 0); break;
     case 'mesPrev': mes = addYM(mes, -1); render(); break;
@@ -4007,6 +4013,74 @@ document.addEventListener('keydown', ev => {
 // Si la app queda abierta de un día para otro, refresca "hoy"
 document.addEventListener('visibilitychange', () => { if(!document.hidden && $('#sheetWrap').hidden) render(); });
 
+/* ================= Notificaciones push (25/11/2026) =================
+   Las envia un Worker gratis de Cloudflare (push-worker/). Aqui: pedir permiso, registrar el telefono, mandar las fechas
+   de vencimiento (sin nombres) y, en la ayudante, avisarle al dueño lo nuevo. */
+const PUSH_URL = 'https://mis-gastos-push.jesser-gastos.workers.dev', VAPID_PUB = 'BBKxIrplybPC9CP86gurQSogbkeUuQdXZkCHz1MGI9u4Obw5GMkNZJ6LxFieJ9VBnaHHEJ4NjNqbcadnjx9pI-w';
+const esIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const notifOn = () => !!S.ajustes.notif && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+function b64uABytes(t){ const b = atob(t.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((t.length + 3) % 4)); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+async function pushApi(ruta, body){
+  const u = await usuarioFb(); if(!u) throw new Error('Primero conecta la nube (☁️)');
+  const r = await fetch(PUSH_URL + ruta, {method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + await u.getIdToken()}, body: JSON.stringify(body || {})});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok || !j.ok) throw new Error(j.error || ('error ' + r.status));
+  return j;
+}
+function notifHtml(){
+  if(!PUSH_URL) return '';
+  return `<section class="card"><h3>🔔 Notificaciones ${notifOn() ? '✅' : ''}</h3>${notifOn()
+    ? '<div class="neg-btns"><button class="btn" data-act="notifProbar">🔔 Probar</button><button class="btn" data-act="notifApagar">🔕 Apagar</button></div>'
+    : '<button class="btn primary" data-act="notifActivar">🔔 Activar en este teléfono</button>'}</section>`;
+}
+async function notifActivar(){
+  if(!PUSH_URL) return;
+  if(!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined'){
+    toast(esIOS ? 'En iPhone: Compartir → «Agregar a inicio», y abre la app desde ese ícono' : 'Este navegador no permite notificaciones'); return; }
+  if(!AYU && !S.ajustes.nube){ toast('Primero conecta la nube (☁️) en Ayudantes'); return; }
+  const p = await Notification.requestPermission();
+  if(p !== 'granted'){ toast('No se dio permiso. Actívalo en la configuración del teléfono'); return; }
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub) sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64uABytes(VAPID_PUB)});
+    await pushApi('/registro', {sub: sub.toJSON(), nombre: AYU ? AYU.nombre : ''});
+    S.ajustes.notif = true; save(); localStorage.removeItem(KEY + '-agenda'); await enviarAgenda();
+    toast('🔔 Notificaciones activadas'); render();
+  }catch(e){ toast('⚠️ ' + (e.message || e)); }
+}
+async function notifProbar(){ try{ const r = await pushApi('/prueba'); toast(r.enviados ? '🔔 Enviada: debe llegar en unos segundos' : '⚠️ No se pudo enviar'); }catch(e){ toast('⚠️ ' + (e.message || e)); } }
+async function notifApagar(){
+  try{ const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription();
+    if(sub){ await pushApi('/baja', {endpoint: sub.endpoint}).catch(() => {}); await sub.unsubscribe(); } }catch(e){}
+  S.ajustes.notif = false; save(); toast('🔕 Notificaciones apagadas'); render();
+}
+let tAgenda = null;
+async function enviarAgenda(){   // solo fechas de vencimiento, sin nombres ni montos
+  if(!PUSH_URL || !S.ajustes.notif) return;
+  const fechas = S.clientes.filter(c => !c.baja && c.vence).map(c => c.vence).sort(), dias = diasAviso(), firma = JSON.stringify({fechas, dias});
+  if(localStorage.getItem(KEY + '-agenda') === firma) return;
+  try{ await pushApi('/agenda', {fechas, dias}); localStorage.setItem(KEY + '-agenda', firma); }catch(e){}
+}
+async function avisarDueno(){   // ayudante: lo nuevo desde el ultimo aviso le llega al dueño
+  if(!PUSH_URL || !AYU || !AYU.nube) return;
+  const ids = {c: S.clientes.filter(c => !c.delDueno).map(c => c.id), v: S.ventas.map(v => v.id), i: S.ingAyu.map(i => i.id)};
+  if(!AYU.notiVisto){ AYU.notiVisto = ids; localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); return; }   // la primera vez no avisa lo viejo
+  const vis = AYU.notiVisto, nc = S.clientes.filter(c => ids.c.includes(c.id) && !(vis.c || []).includes(c.id)),
+    nv = S.ventas.filter(v => !(vis.v || []).includes(v.id)), ni = S.ingAyu.filter(i => !(vis.i || []).includes(i.id));
+  if(!nc.length && !nv.length && !ni.length) return;
+  const L = [];
+  nc.forEach(c => L.push('👤 Cliente nuevo: ' + c.nombre));
+  nv.forEach(v => L.push('💵 Cobro: ' + (v.cliente || v.nom) + ' ' + fmtEn(totalVenta(v), monOk(v.mon)) + (pendienteV(v) > 0 ? ' (fiado)' : '')));
+  ni.forEach(i => L.push('💰 Le pagaron ' + fmtEn(i.monto, monOk(i.mon)) + (i.cta ? ' a ' + i.cta : '') + (i.desc ? ' (' + i.desc + ')' : '')));
+  const texto = L.length > 4 ? L.slice(0, 3).join('\n') + `\n…y ${L.length - 3} más` : L.join('\n');
+  try{ await pushApi('/avisar', {titulo: '👥 ' + AYU.nombre, texto}); AYU.notiVisto = ids; localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); }catch(e){}
+}
+(() => {   // despues de cada guardado: fechas para el aviso de la mañana
+  const antes = window.__trasGuardar;
+  window.__trasGuardar = () => { if(antes) antes(); if(PUSH_URL && S.ajustes.notif){ clearTimeout(tAgenda); tAgenda = setTimeout(enviarAgenda, 4000); } };
+  if(PUSH_URL && S.ajustes.notif) setTimeout(enviarAgenda, 8000);
+})();
 render();
 bloquear();
 if(AYU) revisarIngAyu();
