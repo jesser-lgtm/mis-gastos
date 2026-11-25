@@ -597,6 +597,9 @@ body.modo-ayu main#main[data-tab="inicio"] .kpis.k3 .kpi b{font-size:23px;margin
 .sem-v.cero{color:var(--muted);font-weight:500}
 .sem{min-height:110px}
 body.modo-ayu main#main[data-tab="inicio"] .sem-card{margin-bottom:0}
+
+/* lo que pago el cliente, debajo del nombre (24/11/2026) */
+.cli .txt small.cli-pago{display:block;font-size:13.5px;font-weight:650;color:var(--ink2);margin-top:1px}
 </style>
 </head>
 <body>
@@ -1047,9 +1050,11 @@ function filaCli(c, botones){   // una linea: nombre y cuando vence (o lo que de
   const e = estadoCli(c), d = c.vence ? diasHasta(c.vence) : null, deu = deudaCli(c);
   const est = e === 'baja' ? 'No renovó' : d === null ? '' : d < 0 ? 'Venció ' + fechaCorta(c.vence) : d === 0 ? 'Vence hoy' : fechaCorta(c.vence);
   const vp = deu > 0.004 ? S.ventas.filter(v => v.cli === c.id && pendienteV(v) > 0).sort((a,b) => a.fecha < b.fecha ? -1 : 1)[0] : null;
+  const uv = ventasDeCli(c)[0], pk = paqDe(c), pp = prodDe(c);
+  const pago = uv ? fmtEn(totalVenta(uv), monOk(uv.mon)) : pk && pp ? fmtEn(pk.precio, monOk(pp.mon)) : '';
   const der = vp && !botones ? `<span class="amt cv rojo">${fmt(deu)}</span>` : `<span class="amt cv">${est}${vp ? `<small class="rojo">debe ${fmt(deu)}</small>` : ''}</span>`;
   return `<div class="cli ${e}${vp && !botones ? ' con-pago' : ''}" data-n="${esc(norm(c.nombre + ' ' + (c.tel || '')))}"><button class="item" data-act="editCli" data-id="${c.id}"><span class="ico">${e === 'baja' ? '💤' : e === 'vencido' ? '⏰' : vp ? '📝' : '👤'}</span>
-    <span class="txt"><b>${esc(c.nombre)}</b></span>${der}</button>${vp && !botones ? `<button type="button" class="btn small primary" data-act="pagoFiado" data-id="${vp.id}">💵 Pagó</button>` : ''}
+    <span class="txt"><b>${esc(c.nombre)}</b>${pago ? `<small class="cli-pago">${pago}</small>` : ''}</span>${der}</button>${vp && !botones ? `<button type="button" class="btn small primary" data-act="pagoFiado" data-id="${vp.id}">💵 Pagó</button>` : ''}
     ${botones ? `<div class="cli-btns"><button class="btn small primary" data-act="renovar" data-id="${c.id}">✅ Renovó</button><button class="btn small" data-act="noRenovo" data-id="${c.id}">❌ No renovó</button><button class="btn small" data-act="avisar" data-id="${c.id}">💬 Avisar</button></div>` : ''}</div>`;
 }
 function filaFiaV(v){   // fiado sin cliente guardado (ej. venta de créditos)
@@ -2162,7 +2167,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1815';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261124-1837';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
