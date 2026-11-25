@@ -1117,6 +1117,9 @@ function tarjetaInicial(e){
   const ult = S.gastos.slice().sort(ordenG).find(g => g.tarjeta && tarDe(g.tarjeta));
   return ult ? ult.tarjeta : (S.tarjetas[0] || {}).id || '';
 }
+const tarDebito = () => S.tarjetas.filter(t => t.tipo === 'debito');
+const chipsTarDeb = sel => tarDebito().length ? tarDebito().map(t => `<button type="button" class="chip${t.id === sel ? ' on' : ''}" data-t="${t.id}">🏧 ${esc(nomTar(t))}</button>`).join('')
+  : '<span class="hint" style="margin:0">Aún no tienes tarjetas de débito.</span>';
 const chipsTar = sel => S.tarjetas.length ? S.tarjetas.map(t => `<button type="button" class="chip${t.id === sel ? ' on' : ''}" data-t="${t.id}">${t.tipo === 'debito' ? '🏧' : '💳'} ${esc(nomTar(t))}</button>`).join('')
   : '<span class="hint" style="margin:0">Aún no tienes tarjetas: toca «+ Agregar tarjeta».</span>';
 function tarjetasHtml(){
@@ -1124,11 +1127,13 @@ function tarjetasHtml(){
   return `<section class="card"><h3>💳 Mis tarjetas <button class="link" style="margin:0" data-act="nTar">+ Agregar</button></h3>${S.tarjetas.length
     ? `<div class="list">${S.tarjetas.map(t => { const gs = S.gastos.filter(g => g.tarjeta === t.id && g.fecha.startsWith(ym));
         const det = [t.tipo === 'debito' ? 'Débito' : 'Crédito', t.corte ? 'corte día ' + t.corte : '', t.pago ? 'pago día ' + t.pago : '', +t.limite > 0 ? 'límite ' + fmt(t.limite) : ''].filter(Boolean).join(' · ');
+        if(t.tipo === 'debito'){ const ent = S.ingresos.filter(i => i.tarjeta === t.id && i.fecha.startsWith(ym)).reduce((a,i) => a + mB(i), 0);
+          return `<button class="item wrap" data-act="editTar" data-id="${t.id}"><span class="ico">🏧</span><span class="txt"><b>${esc(nomTar(t))}</b><small>Débito${gs.length ? ' · gastado ' + fmt(sum(gs)) : ''}</small></span><span class="amt pos">+${fmt(ent)}<small>entró este mes</small></span></button>`; }
         return `<button class="item wrap" data-act="editTar" data-id="${t.id}"><span class="ico">${t.tipo === 'debito' ? '🏧' : '💳'}</span><span class="txt"><b>${esc(nomTar(t))}</b><small>${det}</small></span><span class="amt">${fmt(sum(gs))}<small>este mes</small></span></button>`; }).join('')}</div>`
     : '<p class="hint" style="margin:0">Agrega tus tarjetas (ej. BAC Visa) y al anotar un gasto con tarjeta eliges cuál usaste.</p>'}</section>`;
 }
-function abrirTarjeta(t, volver){
-  const e = t || {nombre: '', tipo: 'credito', ult4: '', limite: '', corte: '', pago: ''};
+function abrirTarjeta(t, volver, tipoIni){
+  const e = t || {nombre: '', tipo: tipoIni === 'debito' ? 'debito' : 'credito', ult4: '', limite: '', corte: '', pago: ''};
   let tipo = e.tipo === 'debito' ? 'debito' : 'credito';
   const ym = mesActual(), mesT = t ? S.gastos.filter(g => g.tarjeta === t.id && g.fecha.startsWith(ym)) : [];
   abrirSheet(`<h2>${t ? '💳 ' + esc(t.nombre) : 'Nueva tarjeta'}</h2>
@@ -2248,7 +2253,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261125-1044';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261125-1103';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -2374,7 +2379,7 @@ function itemG(g){
 function itemI(i){
   const c = icat(i.cat);
   return `<button class="item ing" data-act="editI" data-id="${i.id}"><span class="ico">${c.e}</span>
-    <span class="txt"><b>${esc(i.desc || c.n)}</b><small>${esc(c.n)}${i.metodo ? ' · ' + esc(METODO_ING_TXT[i.metodo] || i.metodo) : ''}${nFotos(i)}${i.nota ? ' · ' + esc(i.nota) : ''}</small></span>
+    <span class="txt"><b>${esc(i.desc || c.n)}</b><small>${esc(c.n)}${i.tarjeta && S.tarjetas.some(t => t.id === i.tarjeta) ? ' · 🏧 ' + esc(nomTar(S.tarjetas.find(t => t.id === i.tarjeta))) : i.metodo ? ' · ' + esc(METODO_ING_TXT[i.metodo] || i.metodo) : ''}${nFotos(i)}${i.nota ? ' · ' + esc(i.nota) : ''}</small></span>
     <span class="amt">+${fmtM(i)}${otraMon(i) ? `<small>≈ ${fmt(mB(i))}</small>` : ''}</span></button>`;
 }
 function itemIF(f){
@@ -2910,6 +2915,7 @@ function abrirFijo(f, pre){
 function abrirIngreso(it, pre){
   const e = Object.assign({}, it || {monto:'', desc:'', cat:'negocio', fecha:hoy(), metodo:'Efectivo', nota:''}, pre || {});
   let catSel = ingCatOk(e.cat), metSel = METODOS_ING.includes(e.metodo) ? e.metodo : 'Efectivo';
+  let tarSel = e.tarjeta && tarDebito().some(t => t.id === e.tarjeta) ? e.tarjeta : (tarDebito().length === 1 ? tarDebito()[0].id : '');
   const fotosSel = fotosDe(e);
   abrirSheet(`<h2>${it ? 'Editar ingreso' : 'Nuevo ingreso'}</h2>${it ? '' : segMovHtml('ingreso')}
     <div class="lbl2">Nombre del ingreso</div>
@@ -2918,6 +2924,7 @@ function abrirIngreso(it, pre){
     ${monHtml('i', monDe(e), e.monto)}
     <div class="lbl2 lbl-row"><span>Tipo de ingreso</span><button type="button" class="lnk" id="iCatsEd">✏️ Editar</button></div>${chipsIng(catSel, 'iCats')}
     <div class="lbl2">¿Dónde entró?</div>${segMetIng('iMet', metSel)}
+    ${AYU ? '' : `<div id="iTarWrap"${metSel === 'Tarjeta de débito' ? '' : ' hidden'}><div class="lbl2 lbl-row"><span>¿En qué tarjeta de débito?</span><button type="button" class="lnk" id="iTarN">+ Agregar tarjeta</button></div><div class="chips" id="iTar">${chipsTarDeb(tarSel)}</div></div>`}
     <div class="lbl2">Fecha</div><input id="iFecha" class="inp" type="date" value="${e.fecha}" max="${hoy()}">
     <input id="iNota" class="inp" placeholder="Nota (opcional)" value="${esc(e.nota || '')}">
     ${fotosHtml('i')}
@@ -2927,16 +2934,22 @@ function abrirIngreso(it, pre){
     <button class="btn ghost" id="iNo">Cancelar</button>`);
   const getMon = ligarMon('i', monDe(e));
   ligarMov(getMon); ligarFotos('i', fotosSel);
-  ligarEditCats('iCats', 'ing', () => ({monto: $('#iMonto').value, mon: getMon(), desc: $('#iDesc').value, cat: catSel, metodo: metSel, fecha: $('#iFecha').value, nota: $('#iNota').value, fotos: fotosSel.slice()}), d => abrirIngreso(it, d));
+  ligarEditCats('iCats', 'ing', () => ({monto: $('#iMonto').value, mon: getMon(), desc: $('#iDesc').value, cat: catSel, metodo: metSel, fecha: $('#iFecha').value, nota: $('#iNota').value, fotos: fotosSel.slice(), tarjeta: tarSel}), d => abrirIngreso(it, d));
   $('#iCats').onclick = ev => { const b = ev.target.closest('[data-cat]'); if(b){ catSel = b.dataset.cat; marcarChip($('#iCats'), 'cat', catSel); } };
-  $('#iMet').onclick = ev => { const b = ev.target.closest('[data-m]'); if(b){ metSel = b.dataset.m; marcarChip($('#iMet'), 'm', metSel); } };
+  $('#iMet').onclick = ev => { const b = ev.target.closest('[data-m]'); if(b){ metSel = b.dataset.m; marcarChip($('#iMet'), 'm', metSel); if($('#iTarWrap')) $('#iTarWrap').hidden = metSel !== 'Tarjeta de débito'; } };
+  if($('#iTar')){
+    $('#iTar').onclick = ev => { const b = ev.target.closest('[data-t]'); if(b){ tarSel = b.dataset.t; marcarChip($('#iTar'), 't', tarSel); } };
+    $('#iTarN').onclick = () => { const d = {monto: $('#iMonto').value, mon: getMon(), desc: $('#iDesc').value, cat: catSel, metodo: 'Tarjeta de débito', fecha: $('#iFecha').value, nota: $('#iNota').value, fotos: fotosSel.slice(), tarjeta: tarSel};
+      abrirTarjeta(null, extra => abrirIngreso(it, Object.assign(d, extra)), 'debito'); };   // agregar tarjeta sin perder lo escrito
+  }
   $('#iNo').onclick = cerrarSheet;
   $('#iOk').onclick = () => {
     const monto = parseMonto($('#iMonto').value), fecha = $('#iFecha').value, mon = getMon();
     if(!(monto > 0)){ $('#iErr').textContent = 'Escribe cuánto te entró.'; $('#iMonto').focus(); return; }
     if(!reFecha.test(fecha)){ $('#iErr').textContent = 'Elige la fecha.'; return; }
     const datos = {monto, mon, desc: $('#iDesc').value.trim().slice(0, 80), cat: catSel, metodo: metSel, fecha, nota: $('#iNota').value.trim().slice(0, 120), fotos: fotosSel.slice()};
-    if(it) Object.assign(it, datos);
+    if(metSel === 'Tarjeta de débito' && tarSel && !AYU) datos.tarjeta = tarSel;
+    if(it){ delete it.tarjeta; Object.assign(it, datos); }
     else S.ingresos.push(Object.assign({id: uid(), creado: Date.now()}, datos));
     save(); cerrarSheet();
     if(!it && fecha.slice(0,7) !== mes) mes = fecha.slice(0,7);
@@ -3773,7 +3786,7 @@ function limpiarF(f){
 function limpiarI(i){
   if(!i || !i.id || !reFecha.test(i.fecha) || !(+i.monto > 0)) return null;
   return {id:String(i.id), creado:+i.creado || 0, monto:+i.monto, ...(i.mon === 'US$' || i.mon === 'C$' ? {mon: i.mon} : {}), ...(fotosDe(i).length ? {fotos: fotosDe(i)} : {}),
-    desc:String(i.desc || '').slice(0,80), cat: ingCatOk(i.cat), metodo: METODOS_ING.includes(i.metodo) ? i.metodo : '', fecha:i.fecha, nota:String(i.nota || '').slice(0,120)};
+    desc:String(i.desc || '').slice(0,80), cat: ingCatOk(i.cat), metodo: METODOS_ING.includes(i.metodo) ? i.metodo : '', ...(i.tarjeta ? {tarjeta: String(i.tarjeta).slice(0, 40)} : {}), fecha:i.fecha, nota:String(i.nota || '').slice(0,120)};
 }
 function limpiarIF(f){
   if(!f || !f.id || !reFecha.test(f.inicio) || !(+f.monto > 0) || !FREC[f.frecuencia]) return null;
