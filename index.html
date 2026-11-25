@@ -958,6 +958,8 @@ function negocioMes(ym){
   const vs = S.ventas.filter(v => v.fecha.startsWith(ym)), cs = S.comprasNeg.filter(c => c.fecha.startsWith(ym));
   return {vs, cs, ventas: vs.reduce((a,v) => a + enB(totalVenta(v), v.mon), 0), costo: vs.reduce((a,v) => a + enB(costoVenta(v), v.mon), 0),
     compras: cs.reduce((a,c) => a + enB((+c.cant || 0) * (+c.costo || 0), c.mon), 0),
+    cobradoMio: S.ventas.filter(v => !(v.ayu && v.pagoA !== 'jesser')).reduce((a,v) => a + (v.fiado ? (v.pagos || []).filter(p => p.fecha.startsWith(ym)).reduce((b,p) => b + enB(+p.monto || 0, v.mon), 0)
+      : (v.fecha.startsWith(ym) ? enB(totalVenta(v), v.mon) : 0)), 0),   // sin lo que la ayudante cobro en SUS cuentas (entra por sus pagos anotados)
     cobrado: S.ventas.reduce((a,v) => a + (v.fiado ? (v.pagos || []).filter(p => p.fecha.startsWith(ym)).reduce((b,p) => b + enB(+p.monto || 0, v.mon), 0)
       : (v.fecha.startsWith(ym) ? enB(totalVenta(v), v.mon) : 0)), 0)};
 }
@@ -970,6 +972,7 @@ function extrasVenta(v){   // fiado, pagos, nota... (respaldo)
   if(v.fiado){ o.fiado = true; o.pagos = (Array.isArray(v.pagos) ? v.pagos : []).filter(p => p && +p.monto > 0 && reFecha.test(p.fecha)).slice(0, 200)
     .map(p => ({id: String(p.id || uid()), monto: +p.monto, fecha: p.fecha, ...(METODOS_COBRO.includes(p.metodo) ? {metodo: p.metodo} : {}), ...(p.nota ? {nota: String(p.nota).slice(0, 160)} : {}), ...(fotosDe(p).length ? {fotos: fotosDe(p)} : {})})); }
   if(accesoDe(v.acceso)) o.acceso = accesoDe(v.acceso);
+  if(v.pagoA === 'ella' || v.pagoA === 'jesser') o.pagoA = v.pagoA;
   if(reFecha.test(v.promesa)) o.promesa = v.promesa;
   if(v.nota) o.nota = String(v.nota).slice(0, 160);
   if(v.tipo === 'creditos') o.tipo = 'creditos';
@@ -1026,7 +1029,7 @@ function registrarRenovacion(c, fecha, cobro){
     items: cobro.items.map(i => ({paq: i.paq, n: i.n, cred: i.cred, meses: i.meses || 1, cant: i.cant, precio: i.precio})),
     cli: c.id, cliente: c.nombre, cant: cred, total: cobro.total, costo: convMon(p.costo, pm, mon), mon, fecha, hasta: c.vence, recibo: S.ajustes.reciboN};
   if(cobro.metodo) v.metodo = cobro.metodo;
-  if(AYU){ v.cuenta = AYU.cuenta; v.ayu = AYU.ayudanteId; v.reciboPre = AYU.letra; }
+  if(AYU){ v.cuenta = AYU.cuenta; v.ayu = AYU.ayudanteId; v.reciboPre = AYU.letra; v.pagoA = cobro.pagoA === 'jesser' ? 'jesser' : 'ella'; if(v.pagoA === 'jesser') v.cuenta = 'Cuentas de ' + AYU.dueno; }
   if(cobro.fotos && cobro.fotos.length) v.fotos = cobro.fotos.slice(0, MAX_FOTOS);
   if(cobro.pago) aplicarPagoEstado(v, cobro.pago, cobro.metodo);
   const ac = accesoDe(c); if(ac) v.acceso = ac;
@@ -1379,7 +1382,7 @@ function avisoLimite(id){
   return p >= 100 ? ` · ⚠️ Te pasaste del límite de ${cat(id).n} (${p}%)` : p >= 80 ? ` · ⚠️ ${cat(id).n} va por el ${p}% de su límite` : '';
 }
 const conNegocio = () => S.ajustes.negEnQueda !== 'no';
-const ingresosTot = ym => sum(ingresosMes(ym)) + totalIngFijos(ym) + (conNegocio() ? negocioMes(ym).cobrado : 0);
+const ingresosTot = ym => sum(ingresosMes(ym)) + totalIngFijos(ym) + (conNegocio() ? negocioMes(ym).cobradoMio : 0);
 const gastosTot = ym => sum(gastosMes(ym)) + totalFijos(ym) + (conNegocio() ? negocioMes(ym).compras : 0);
 function proxDia(dia){   // proxima fecha con ese dia del mes (hoy incluido)
   const h = new Date(), y = h.getFullYear(), m = h.getMonth();
@@ -2197,6 +2200,18 @@ async function quitarAyudanteNube(a){
   try{ const u = await usuarioFb(); if(!u) return; const {db} = await cargarFirebase();
     await db.doc(`duenos/${u.uid}/ayudantes/${a.id}`).set({activo: false}, {merge: true}); await db.doc(`ayudantesPorEmail/${a.email}`).delete(); }catch(e){}
 }
+function sincIngAyu(a){   // los pagos que anota la ayudante = ingresos del dueño (se actualizan solos)
+  const lista = a.ingresos || [], ids = new Set(lista.map(i => 'ayu-' + i.id)); let cambio = false;
+  S.ingresos = S.ingresos.filter(x => { if(x.ayu === a.id && !ids.has(x.id)){ cambio = true; return false; } return true; });
+  lista.forEach(i => {
+    const id = 'ayu-' + i.id, d = {monto: i.monto, mon: monOk(i.mon), fecha: i.fecha, desc: (a.nombre + ' · ' + (i.desc || 'pago')).slice(0, 80), cat: ingCatOk('negocio'),
+      metodo: 'Transferencia', nota: ((i.cta ? i.cta + ' de ' : 'Cuenta de ') + a.nombre).slice(0, 120), ayu: a.id};
+    const x = S.ingresos.find(y => y.id === id);
+    if(!x){ S.ingresos.push(Object.assign({id, creado: i.creado || Date.now()}, d)); cambio = true; }
+    else if(Object.keys(d).some(k => x[k] !== d[k])){ Object.assign(x, d); cambio = true; }
+  });
+  return cambio;
+}
 async function escucharAyudantes(){   // en vivo: lo que anota cada ayudante entra solo
   escuchas.forEach(f => f()); escuchas = [];
   if(AYU || !S.ajustes.nube) return;
@@ -2207,6 +2222,7 @@ async function escucharAyudantes(){   // en vivo: lo que anota cada ayudante ent
       if(!snap.exists) return;
       const d = snap.data(); if(a.nubeTs && d.actualizado <= a.nubeTs) return;
       a.ingresos = (d.ingresos || []).map(limpiarIngAyu).filter(Boolean);   // sus ingresos, aparte
+      sincIngAyu(a);   // ...y entran a los ingresos del dueño
       await cargarDeAyudante({ayudanteId: a.id, nombre: a.nombre, cuenta: a.cuenta, clientes: d.clientes || [], ventas: d.ventas || []}, true);
       a.nubeTs = d.actualizado; a.ultimaCarga = new Date().toISOString(); save();
       nubeEstado = 'Último dato de ' + a.nombre + ': ' + new Date(d.actualizado).toLocaleString('es', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
@@ -2243,7 +2259,7 @@ async function subirEstadoAyu(){
     const u = await usuarioFb(); if(!u){ nubeAyuMsg = '⚠️ Se cerró tu sesión: sal del modo ayudante y entra otra vez.'; return; }
     const {db} = await cargarFirebase();
     await db.doc(`duenos/${AYU.nube.dueno}/ayudantes/${AYU.ayudanteId}/datos/estado`).set(limpioFs({
-      clientes: clientesParaSubir().map(sinFotos), ventas: S.ventas.map(v => Object.assign(sinFotos(v), {cuenta: AYU.cuenta, ayu: AYU.ayudanteId})), ingresos: S.ingAyu.map(limpiarIngAyu).filter(Boolean), actualizado: Date.now()}));
+      clientes: clientesParaSubir().map(sinFotos), ventas: S.ventas.map(v => Object.assign(sinFotos(v), {cuenta: v.pagoA === 'jesser' ? v.cuenta : AYU.cuenta, ayu: AYU.ayudanteId})), ingresos: S.ingAyu.map(limpiarIngAyu).filter(Boolean), actualizado: Date.now()}));
     avisarDueno();
     AYU.subido = new Date().toISOString(); AYU.enviado = AYU.subido; localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); nubeAyuMsg = '';
   }catch(e){
@@ -2255,7 +2271,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261125-1140';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261125-1158';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -2307,8 +2323,8 @@ function bienvenida(){
 function vInicio(){   // compacto: cuadritos, pendientes, categorias y ultimas compras
   const gs = gastosMes(mes), tv = sum(gs), tf = totalFijos(mes), total = tv + tf, esCur = mes === mesActual();
   const ti = sum(ingresosMes(mes)) + totalIngFijos(mes);
-  const nm = negocioMes(mes), conNeg = S.ajustes.negEnQueda !== 'no' && (nm.cobrado > 0 || nm.compras > 0);
-  const entra = ti + (conNeg ? nm.cobrado : 0), sale = total + (conNeg ? nm.compras : 0), queda = entra - sale;
+  const nm = negocioMes(mes), conNeg = S.ajustes.negEnQueda !== 'no' && (nm.cobradoMio > 0 || nm.compras > 0);
+  const entra = ti + (conNeg ? nm.cobradoMio : 0), sale = total + (conNeg ? nm.compras : 0), queda = entra - sale;
   const p = +S.ajustes.presupuesto, pct = p ? Math.round(total / p * 100) : null, vista = monVista || monBase();
   let h = avisos();
   h += `<section class="card kpis-card"><div class="kpis-top" style="justify-content:flex-end;margin-bottom:6px"><div class="seg mini">${[monBase(), monOtra()].map(m => `<button type="button" data-act="verEn" data-v="${m}" class="${m === vista ? 'on' : ''}">${esc(sim(m))}</button>`).join('')}</div></div>
@@ -3103,12 +3119,13 @@ function cobroHtml(x){
     <div class="lbl2">Moneda del pago</div><div class="seg mon-seg" id="${x}CMon">${[monBase(), monOtra()].map(m => `<button type="button" data-mon="${m}">${m === 'US$' ? '💵 Dólares ($)' : m === 'C$' ? 'Córdobas (C$)' : esc(m)}</button>`).join('')}</div>
     <div class="lbl2">Total a cobrar</div><label class="monto"><span id="${x}CSim"></span><input id="${x}CTot" inputmode="decimal" autocomplete="off" placeholder="0"></label>
     <div class="conv" id="${x}CRes"></div>
+    ${AYU ? `<div class="lbl2">¿A quién le pagaron?</div><div class="seg" id="${x}CA"><button type="button" data-a="ella">👩 A mí</button><button type="button" data-a="jesser">🏦 Cuentas de ${esc(AYU.dueno)}</button></div>` : ''}
     <div class="lbl2">Método de pago</div><div class="seg" id="${x}CMet">${METODOS_COBRO.map(m => `<button type="button" data-m="${m}">${m}</button>`).join('')}</div>
     ${pagoHtml(x + 'C')}
     ${fotosHtml(x + 'C')}<div class="ocr" id="${x}COcr"></div>`;
 }
 function ligarCobro(x, getProd, inicial, getBase){
-  let items = [], manual = false, mon = monOk(getProd().mon), metodo = AYU ? 'Transferencia' : 'Efectivo';
+  let items = [], manual = false, mon = monOk(getProd().mon), metodo = AYU ? 'Transferencia' : 'Efectivo', pagoA = 'ella';
   const fotos = [], tot = $('#' + x + 'CTot'), pm = () => monOk(getProd().mon);
   const normal = () => Math.round(items.reduce((a,i) => a + convMon(i.precio, pm(), mon) * i.cant, 0) * 100) / 100;   // igual que el recibo
   const cred = () => items.reduce((a,i) => a + i.cred * i.cant, 0), meses = () => items.reduce((a,i) => a + (i.meses || 1) * i.cant, 0);
@@ -3140,6 +3157,7 @@ function ligarCobro(x, getProd, inicial, getBase){
     const t = parseMonto(tot.value), viejo = mon; mon = b.dataset.mon; if(manual && t >= 0) tot.value = String(convMon(t, viejo, mon)); pintar(); };
   tot.addEventListener('input', () => { manual = true; resumen(); });
   marcarChip($('#' + x + 'CMet'), 'm', metodo);
+  if($('#' + x + 'CA')){ marcarChip($('#' + x + 'CA'), 'a', pagoA); $('#' + x + 'CA').onclick = ev => { const b = ev.target.closest('[data-a]'); if(b){ pagoA = b.dataset.a; marcarChip($('#' + x + 'CA'), 'a', pagoA); } }; }
   $('#' + x + 'CMet').onclick = ev => { const b = ev.target.closest('[data-m]'); if(b){ metodo = b.dataset.m; marcarChip($('#' + x + 'CMet'), 'm', metodo); } };
   const getPg = ligarPago(x + 'C');
   ligarFotos(x + 'C', fotos, ligarOcrMonto(x + 'C', fotos, (t, mo, det) => {   // foto del pago -> total (o abono si es fiado)
@@ -3149,7 +3167,7 @@ function ligarCobro(x, getProd, inicial, getBase){
   }));
   const reset = ini => { items = []; manual = false; mon = pm(); (ini || []).forEach(i => agregar(i.paq, i.cant || 1)); pintar(); };
   reset(inicial);
-  return {get: () => ({items: items.map(i => Object.assign({}, i, {precio: convMon(i.precio, pm(), mon)})), total: parseMonto(tot.value), mon, metodo, fotos: fotos.slice(), pago: getPg()}),
+  return {get: () => ({items: items.map(i => Object.assign({}, i, {precio: convMon(i.precio, pm(), mon)})), total: parseMonto(tot.value), mon, metodo, fotos: fotos.slice(), pago: getPg(), pagoA}),
     reset, cred, refrescar: resumen};
 }
 
@@ -3789,7 +3807,7 @@ function limpiarF(f){
 function limpiarI(i){
   if(!i || !i.id || !reFecha.test(i.fecha) || !(+i.monto > 0)) return null;
   return {id:String(i.id), creado:+i.creado || 0, monto:+i.monto, ...(i.mon === 'US$' || i.mon === 'C$' ? {mon: i.mon} : {}), ...(fotosDe(i).length ? {fotos: fotosDe(i)} : {}),
-    desc:String(i.desc || '').slice(0,80), cat: ingCatOk(i.cat), metodo: METODOS_ING.includes(i.metodo) ? i.metodo : '', ...(i.tarjeta ? {tarjeta: String(i.tarjeta).slice(0, 40)} : {}), fecha:i.fecha, nota:String(i.nota || '').slice(0,120)};
+    desc:String(i.desc || '').slice(0,80), cat: ingCatOk(i.cat), metodo: METODOS_ING.includes(i.metodo) ? i.metodo : '', ...(i.ayu ? {ayu: String(i.ayu).slice(0, 40)} : {}), ...(i.tarjeta ? {tarjeta: String(i.tarjeta).slice(0, 40)} : {}), fecha:i.fecha, nota:String(i.nota || '').slice(0,120)};
 }
 function limpiarIF(f){
   if(!f || !f.id || !reFecha.test(f.inicio) || !(+f.monto > 0) || !FREC[f.frecuencia]) return null;
@@ -4081,6 +4099,7 @@ async function avisarDueno(){   // ayudante: lo nuevo desde el ultimo aviso le l
   window.__trasGuardar = () => { if(antes) antes(); if(PUSH_URL && S.ajustes.notif){ clearTimeout(tAgenda); tAgenda = setTimeout(enviarAgenda, 4000); } };
   if(PUSH_URL && S.ajustes.notif) setTimeout(enviarAgenda, 8000);
 })();
+if(!AYU && S.ayudantes.map(sincIngAyu).some(Boolean)) save();   // pagos de la ayudante que ya habian llegado
 render();
 bloquear();
 if(AYU) revisarIngAyu();
