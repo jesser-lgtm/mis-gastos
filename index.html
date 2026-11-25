@@ -452,9 +452,9 @@ textarea.inp{width:100%;resize:vertical;font:inherit;font-size:15px;line-height:
 .pin-in{letter-spacing:.4em;font-size:20px}
 
 /* modo ayudante (24/11/2026) */
-.tabs button[data-tab="fiado"],.tabs button[data-tab="creditos"]{display:none}
-body.modo-ayu .tabs button[data-tab="creditos"]{display:flex}
-body.modo-ayu .tabs button:not([data-tab="inicio"]):not([data-tab="negocio"]):not([data-tab="creditos"]):not([data-tab="ajustes"]){display:none}
+.tabs button[data-tab="fiado"],.tabs button[data-tab="creditos"],.tabs button[data-tab="ingAyu"]{display:none}
+body.modo-ayu .tabs button[data-tab="creditos"],body.modo-ayu .tabs button[data-tab="ingAyu"]{display:flex}
+body.modo-ayu .tabs button:not([data-tab="inicio"]):not([data-tab="negocio"]):not([data-tab="ingAyu"]):not([data-tab="creditos"]):not([data-tab="ajustes"]){display:none}
 
 
 /* nube (24/11/2026) */
@@ -600,6 +600,10 @@ body.modo-ayu main#main[data-tab="inicio"] .sem-card{margin-bottom:0}
 
 /* lo que pago el cliente, debajo del nombre (24/11/2026) */
 .cli .txt small.cli-pago{display:block;font-size:13.5px;font-weight:650;color:var(--ink2);margin-top:1px}
+
+/* ingresos de la ayudante (25/11/2026) */
+.ri-hoy{font-size:16px;color:var(--ink2);margin:0 0 10px}
+.ri-list{margin:0 0 12px}
 </style>
 </head>
 <body>
@@ -626,6 +630,7 @@ body.modo-ayu main#main[data-tab="inicio"] .sem-card{margin-bottom:0}
   <button data-act="tab" data-tab="movs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>Movimientos</button>
   <button data-act="tab" data-tab="fijos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.5 20.5 6 17 9.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5 3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/></svg>Fijos</button>
   <button data-act="tab" data-tab="negocio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.6-3.4 3-5.3 6-5.3s5.4 1.9 6 5.3"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.3c2.4.1 4.1 1.8 4.5 4.7"/></svg>Clientes</button>
+  <button data-act="tab" data-tab="ingAyu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.4c-.5-.9-1.6-1.4-2.8-1.4-1.6 0-2.8.8-2.8 2 0 2.8 5.8 1.4 5.8 4.1 0 1.3-1.3 2.1-3 2.1-1.3 0-2.4-.5-2.9-1.4"/><path d="M12 6v2M12 16v2"/></svg>Ingresos</button>
   <button data-act="tab" data-tab="fiado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h10.5a2 2 0 0 1 2 2v15l-3-1.8-3 1.8-3-1.8-3 1.8V5.5a2 2 0 0 1 .5-2"/><path d="M9 8.5h6M9 12h6M9 15.5h3.5"/></svg>Fiado</button>
   <button data-act="tab" data-tab="creditos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M2.5 10h19"/><path d="M6.5 14.5h4"/></svg>Créditos</button>
   <button data-act="tab" data-tab="finanzas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V11"/><path d="M10 20V5"/><path d="M16 20v-8"/><path d="M21.5 20h-19"/><path d="M14.5 7.5 17 5l2.5 2.5"/></svg>Finanzas</button>
@@ -757,7 +762,7 @@ cargarCats();
 cargarIngCats();
 if(!Array.isArray(S.ingresos)) S.ingresos = [];
 if(!Array.isArray(S.ingFijos)) S.ingFijos = [];
-['productos', 'ventas', 'comprasNeg', 'prestamos', 'clientes', 'tarjetas', 'metas', 'deudas', 'ayudantes'].forEach(k => { if(!Array.isArray(S[k])) S[k] = []; });
+['productos', 'ventas', 'comprasNeg', 'prestamos', 'clientes', 'tarjetas', 'metas', 'deudas', 'ayudantes', 'ingAyu'].forEach(k => { if(!Array.isArray(S[k])) S[k] = []; });
 if(!Array.isArray(S.ajustes.excluidos)) S.ajustes.excluidos = [];
 delete S.ajustes.verEn;   // el C$|US$ de Inicio es solo para mirar: al abrir, siempre en la moneda principal
 
@@ -909,22 +914,23 @@ let buscaCli = false;   // la lupa de Clientes
 function render(){
   aplicarTema();
   migrarNegocio();
-  if(AYU && !['inicio', 'negocio', 'creditos', 'ajustes'].includes(tab)) tab = 'inicio';
+  if(AYU && !['inicio', 'negocio', 'ingAyu', 'creditos', 'ajustes'].includes(tab)) tab = 'inicio';
+  if(!AYU && tab === 'ingAyu') tab = 'inicio';
   if(!AYU && (tab === 'fiado' || tab === 'creditos')) tab = 'negocio';
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   const conMes = !AYU && (tab === 'inicio' || tab === 'movs');
   $('#mesnav').hidden = !conMes;
   $('#titulo').closest('header').classList.toggle('apretado', tab === 'movs');
-  $('#titulo').textContent = {inicio:'Mis gastos', movs:'Movimientos', fijos:'Fijos y suscripciones', negocio:'Clientes', fiado:'Fiado', creditos:'Créditos', finanzas:'Finanzas', hormiga:'Gastos hormiga', ajustes:'Ajustes'}[tab];
+  $('#titulo').textContent = {inicio:'Mis gastos', movs:'Movimientos', fijos:'Fijos y suscripciones', negocio:'Clientes', fiado:'Fiado', creditos:'Créditos', ingAyu:'Ingresos', finanzas:'Finanzas', hormiga:'Gastos hormiga', ajustes:'Ajustes'}[tab];
   if(AYU && tab === 'inicio') $('#titulo').textContent = 'Inicio';
   $('#mesLabel').textContent = nombreMes(mes);
   $('#mesSig').disabled = mes >= mesActual();
   $('#fab').hidden = tab === 'ajustes' || tab === 'fiado' || tab === 'inicio';   // sin circulo + en Inicio (dueño y ayudante)
-  $('#main').classList.toggle('lleno', ['inicio', 'movs', 'fijos', 'negocio', 'creditos'].includes(tab) || (!!AYU && tab === 'ajustes'));   // la ultima tarjeta llega hasta abajo
+  $('#main').classList.toggle('lleno', ['inicio', 'movs', 'fijos', 'negocio', 'creditos', 'ingAyu'].includes(tab) || (!!AYU && tab === 'ajustes'));   // la ultima tarjeta llega hasta abajo
   $('#main').classList.toggle('con-fab', !$('#fab').hidden);
   $('#main').dataset.tab = tab;
   $('#lupaBtn').hidden = tab !== 'negocio';
-  const vistas = {inicio:AYU ? vInicioAyu : vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, fiado:vFiadoAyu, creditos:vCreditosAyu, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
+  const vistas = {inicio:AYU ? vInicioAyu : vInicio, movs:vMovs, fijos:vFijos, negocio:AYU ? vAyudante : vNegocio, fiado:vFiadoAyu, creditos:vCreditosAyu, ingAyu:vIngAyu, finanzas:vFinanzas, hormiga:vHormiga, ajustes:AYU ? vAjustesAyu : vAjustes};
   monVista = tab === 'inicio' && (S.ajustes.verEn === 'US$' || S.ajustes.verEn === 'C$') ? S.ajustes.verEn : null;
   try{ $('#main').innerHTML = vistas[tab](); } finally { monVista = null; }
   ocultarExplicaciones($('#main'));
@@ -1744,14 +1750,15 @@ function ayudantesHtml(){
   return `<section class="card"><h3>👥 Ayudantes <button class="link" style="margin:0" data-act="nAyu">+ Agregar</button></h3>
     <p class="hint" style="margin-top:0">Otra persona agrega clientes y cobra en su cuenta de banco desde su teléfono. Solo ve sus propios clientes, nunca lo tuyo. Se pasa solo (☁️ automático) o por archivos.</p>
     ${nubeDuenoHtml()}
-    ${S.ayudantes.length ? `<div class="list">${S.ayudantes.map(a => { const nc = S.clientes.filter(c => c.ayu === a.id).length, nv = S.ventas.filter(v => v.ayu === a.id).length;
-      return `<button class="item wrap" data-act="editAyu" data-id="${a.id}"><span class="ico">👥</span><span class="txt"><b>${esc(a.nombre)}</b><small>🏦 ${esc(a.cuenta)} · ${plural(nc, 'cliente', 'clientes')} · ${plural(nv, 'cobro', 'cobros')}<br>${a.ultimaCarga ? 'Último envío cargado: ' + fechaCorta(a.ultimaCarga.slice(0, 10)) : 'Aún no te ha enviado nada'}</small></span></button>`; }).join('')}</div>
+    ${S.ayudantes.length ? `<div class="list">${S.ayudantes.map(a => { const nc = S.clientes.filter(c => c.ayu === a.id).length, nv = S.ventas.filter(v => v.ayu === a.id).length, ingM = sumaIng((a.ingresos || []).filter(i => i.fecha.startsWith(mesActual())));
+      return `<button class="item wrap" data-act="editAyu" data-id="${a.id}"><span class="ico">👥</span><span class="txt"><b>${esc(a.nombre)}</b><small>🏦 ${esc(a.cuenta)} · ${plural(nc, 'cliente', 'clientes')} · ${plural(nv, 'cobro', 'cobros')}${(a.ingresos || []).length ? ' · 💰 ingresos del mes ' + fmt(ingM) : ''}<br>${a.ultimaCarga ? 'Último envío cargado: ' + fechaCorta(a.ultimaCarga.slice(0, 10)) : 'Aún no te ha enviado nada'}</small></span></button>`; }).join('')}</div>
       <button class="btn" data-act="importar">📥 Cargar archivo de un ayudante</button>` : ''}
     ${!S.ajustes.nube && !S.ayudantes.length ? '<button class="btn ghost" data-act="ayuEntrar">🙋 Soy ayudante: entrar con mi correo</button>' : ''}</section>`;
 }
 function abrirAyudante(a){
   const e = a || {nombre: '', cuenta: ''};
   abrirSheet(`<h2>${a ? '👥 ' + esc(a.nombre) : 'Nuevo ayudante'}</h2>
+    ${a && (a.ingresos || []).length ? `<div class="lbl2">💰 Sus ingresos <small>${fmt(sumaIng(a.ingresos.filter(i => i.fecha.startsWith(mesActual()))))} este mes</small></div><div class="list ri-list">${a.ingresos.slice().sort((x,y) => x.fecha < y.fecha ? 1 : -1).slice(0, 30).map(i => `<div class="item ing"><span class="ico">💰</span><span class="txt"><b>${esc(i.desc || 'Ingreso')}</b></span><span class="amt">+${fmtEn(i.monto, monOk(i.mon))}<small>${fechaCorta(i.fecha)}</small></span></div>`).join('')}</div>` : ''}
     ${a ? `<button class="btn primary" id="ayEnv" style="margin:0 0 6px">📤 Mandarle su acceso otra vez</button><p class="hint" style="margin-top:0">Mándaselo de nuevo cuando cambies productos, paquetes o precios.</p>` : ''}
     <div class="lbl2">Nombre</div><input id="ayNom" class="inp" placeholder="Ej. María" value="${esc(e.nombre)}" autocomplete="off">
     <div class="lbl2">Cuenta de banco donde cobra</div><input id="ayCta" class="inp" placeholder="Ej. BAC de María" value="${esc(e.cuenta)}" autocomplete="off">
@@ -1830,6 +1837,7 @@ async function activarAyudante(d, estado){   // telefono de la ayudante: queda e
   if(estado){   // lo que ya tenia en la nube (otro telefono o se borro este)
     S.clientes = (estado.clientes || []).map(limpiarCli).filter(Boolean); S.ventas = (estado.ventas || []).map(limpiarVenta).filter(Boolean);
     S.ajustes.reciboN = S.ventas.reduce((m, v) => Math.max(m, +v.recibo || 0), +S.ajustes.reciboN || 0);
+    S.ingAyu = (estado.ingresos || []).map(limpiarIngAyu).filter(Boolean);
   }
   save(); toast(AYU ? '🔄 Productos y precios actualizados' : '👥 Listo: modo ayudante'); setTimeout(() => location.reload(), 900);
 }
@@ -1915,6 +1923,64 @@ function vFiadoAyu(){
   if(pagados.length) h += `<details class="card bajas"><summary><b>Ya pagaron</b> <small>${pagados.length}</small></summary><div class="list">${pagados.map(itemVenta).join('')}</div></details>`;
   return h;
 }
+function limpiarIngAyu(x){
+  if(!x || typeof x !== 'object' || !/^\d{4}-\d{2}-\d{2}$/.test(String(x.fecha || '')) || !(+x.monto > 0)) return null;
+  return {id: String(x.id || uid()).slice(0, 40), fecha: String(x.fecha), monto: Math.round(+x.monto * 100) / 100, mon: monOk(x.mon), desc: String(x.desc || '').slice(0, 60), creado: +x.creado || 0};
+}
+const sumaIng = l => l.reduce((a,i) => a + enB(i.monto, i.mon), 0);
+function itemIngAyu(i){
+  return `<button class="item ing" data-act="editIngAyu" data-id="${i.id}"><span class="ico">💰</span><span class="txt"><b>${esc(i.desc || 'Ingreso')}</b></span>
+    <span class="amt">+${fmtEn(i.monto, monOk(i.mon))}<small>${fechaCorta(i.fecha)}</small></span></button>`;
+}
+function vIngAyu(){   // los ingresos de la ayudante, aparte de los cobros de clientes
+  const ym = mesActual(), orden = (a,b) => a.fecha === b.fecha ? (b.creado || 0) - (a.creado || 0) : a.fecha < b.fecha ? 1 : -1;
+  const mes = S.ingAyu.filter(i => i.fecha.startsWith(ym)).sort(orden), antes = S.ingAyu.filter(i => !i.fecha.startsWith(ym)).sort(orden);
+  let h = `<section class="card cli-cob"><span>💰 Ingresos de ${MESES[+ym.slice(5) - 1]}</span><b class="pos">${fmt(sumaIng(mes))}</b></section>`;
+  h += `<section class="card"><h3>🧾 Este mes <small>${mes.length}</small></h3>${mes.length ? `<div class="list">${mes.map(itemIngAyu).join('')}</div>` : ''}</section>`;
+  if(antes.length) h += `<details class="card bajas"><summary><b>Meses anteriores</b> <small>${antes.length}</small></summary><div class="list">${antes.map(itemIngAyu).join('')}</div></details>`;
+  return h;
+}
+function abrirIngAyu(x){
+  const e = x || {desc: '', monto: '', mon: monBase(), fecha: hoy()};
+  let mon = monOk(e.mon);
+  abrirSheet(`<h2>${x ? 'Editar ingreso' : '💰 Nuevo ingreso'}</h2>
+    <div class="lbl2">Concepto</div><input id="naDesc" class="inp" placeholder="Ej. salario, comisión, transferencia" value="${esc(e.desc)}" autocomplete="off">
+    <div class="lbl2">Moneda y monto</div><div class="seg" id="naMon">${['C$', 'US$'].map(m => `<button type="button" data-m="${m}" class="${m === mon ? 'on' : ''}">${m === 'C$' ? 'Córdobas (C$)' : 'Dólares ($)'}</button>`).join('')}</div>
+    <input id="naMonto" class="inp" type="text" inputmode="decimal" placeholder="0" value="${e.monto || ''}" autocomplete="off" style="margin-top:8px">
+    <div class="lbl2">Fecha</div><input id="naFecha" class="inp" type="date" value="${esc(e.fecha)}" max="${hoy()}">
+    <button class="btn primary" id="naOk">Guardar</button>${x ? '<button class="btn danger" id="naDel">🗑️ Borrar</button>' : ''}<button class="btn ghost" id="naNo">Cancelar</button>`);
+  $('#naMon').onclick = ev => { const b = ev.target.closest('[data-m]'); if(!b) return; mon = b.dataset.m; $('#naMon').querySelectorAll('button').forEach(y => y.classList.toggle('on', y === b)); };
+  $('#naNo').onclick = cerrarSheet;
+  $('#naOk').onclick = () => {
+    const monto = parseMonto($('#naMonto').value), fecha = $('#naFecha').value;
+    if(!(monto > 0)){ toast('Escribe el monto'); $('#naMonto').focus(); return; }
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){ toast('Elige la fecha'); return; }
+    const datos = {monto, mon, fecha, desc: $('#naDesc').value.trim().slice(0, 60)};
+    if(x) Object.assign(x, datos); else S.ingAyu.push(Object.assign({id: uid(), creado: Date.now()}, datos));
+    save(); cerrarSheet(); render(); toast(x ? '✏️ Ingreso cambiado' : '💰 Ingreso agregado');
+  };
+  if(x) $('#naDel').onclick = () => { if(!confirm('¿Borrar este ingreso?')) return; S.ingAyu = S.ingAyu.filter(i => i !== x); save(); cerrarSheet(); render(); toast('🗑️ Ingreso borrado'); };
+  if(!x) setTimeout(() => { const m = $('#naMonto'); if(m) m.focus(); }, 250);
+}
+let revisarIng = false, ocultoIng = 0;
+function revisarIngAyu(){   // cada vez que entra: no se cierra hasta que confirme
+  if(!AYU) return;
+  revisarIng = true;
+  const hoyL = S.ingAyu.filter(i => i.fecha === hoy());
+  abrirSheet(`<h2>💰 ¿Ya agregaste tus ingresos?</h2>
+    <div class="ri-hoy">${hoyL.length ? `Hoy: <b>${plural(hoyL.length, 'ingreso', 'ingresos')}</b> · <b class="pos">${fmt(sumaIng(hoyL))}</b>` : 'Hoy no has agregado ingresos'}</div>
+    ${hoyL.length ? `<div class="list ri-list">${hoyL.map(itemIngAyu).join('')}</div>` : ''}
+    <button class="btn primary" id="riSi">✅ Sí, ya están todos</button>
+    <button class="btn" id="riAg">➕ Agregar un ingreso</button>`);
+  $('#riSi').onclick = () => { revisarIng = false; AYU.revisoIng = new Date().toISOString(); localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); cerrarSheet(); };
+  $('#riAg').onclick = () => abrirIngAyu(null);
+  $('#sheet').querySelectorAll('[data-act="editIngAyu"]').forEach(b => b.onclick = ev => { ev.stopPropagation(); const x = S.ingAyu.find(i => i.id === b.dataset.id); if(x) abrirIngAyu(x); });
+}
+document.addEventListener('visibilitychange', () => {
+  if(!AYU) return;
+  if(document.hidden) ocultoIng = Date.now();
+  else if(ocultoIng && Date.now() - ocultoIng > 60000) revisarIngAyu();
+});
 function vCreditosAyu(){   // cuadritos arriba y un renglon por paquete
   const ym = mesActual(), mes = S.ventas.filter(v => v.fecha.startsWith(ym)), r = resumenMesAyu(mes), pv = paquetesVendidos(mes);
   const dispTot = S.productos.reduce((a,p) => a + Math.max(0, stockVer(p)), 0);
@@ -2120,6 +2186,7 @@ async function escucharAyudantes(){   // en vivo: lo que anota cada ayudante ent
     escuchas.push(db.doc(`duenos/${u.uid}/ayudantes/${a.id}/datos/estado`).onSnapshot(async snap => {
       if(!snap.exists) return;
       const d = snap.data(); if(a.nubeTs && d.actualizado <= a.nubeTs) return;
+      a.ingresos = (d.ingresos || []).map(limpiarIngAyu).filter(Boolean);   // sus ingresos, aparte
       await cargarDeAyudante({ayudanteId: a.id, nombre: a.nombre, cuenta: a.cuenta, clientes: d.clientes || [], ventas: d.ventas || []}, true);
       a.nubeTs = d.actualizado; a.ultimaCarga = new Date().toISOString(); save();
       nubeEstado = 'Último dato de ' + a.nombre + ': ' + new Date(d.actualizado).toLocaleString('es', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
@@ -2156,7 +2223,7 @@ async function subirEstadoAyu(){
     const u = await usuarioFb(); if(!u){ nubeAyuMsg = '⚠️ Se cerró tu sesión: sal del modo ayudante y entra otra vez.'; return; }
     const {db} = await cargarFirebase();
     await db.doc(`duenos/${AYU.nube.dueno}/ayudantes/${AYU.ayudanteId}/datos/estado`).set(limpioFs({
-      clientes: clientesParaSubir().map(sinFotos), ventas: S.ventas.map(v => Object.assign(sinFotos(v), {cuenta: AYU.cuenta, ayu: AYU.ayudanteId})), actualizado: Date.now()}));
+      clientes: clientesParaSubir().map(sinFotos), ventas: S.ventas.map(v => Object.assign(sinFotos(v), {cuenta: AYU.cuenta, ayu: AYU.ayudanteId})), ingresos: S.ingAyu.map(limpiarIngAyu).filter(Boolean), actualizado: Date.now()}));
     AYU.subido = new Date().toISOString(); AYU.enviado = AYU.subido; localStorage.setItem(AYU_KEY, JSON.stringify(AYU)); nubeAyuMsg = '';
   }catch(e){
     nubeAyuMsg = '⏳ ' + errFb(e) + ' Se enviará cuando haya conexión.';
@@ -2167,7 +2234,7 @@ async function subirEstadoAyu(){
 const nubeAyuHtml = () => `<div class="proy">${nubeAyuMsg ? esc(nubeAyuMsg) : AYU.subido ? '☁️ Todo enviado a ' + esc(AYU.dueno) + ' · ' + new Date(AYU.subido).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'}) : '☁️ Se envía solo a ' + esc(AYU.dueno)}</div>`;
 
 /* ================= Actualizar la app (24/11/2026) ================= */
-const APP_VERSION = '20261124-1837';   // publicar.sh la cambia en cada subida
+const APP_VERSION = '20261125-1028';   // publicar.sh la cambia en cada subida
 let ultimaRevision = 0;
 async function buscarActualizacion(avisar){
   ultimaRevision = Date.now();
@@ -2582,6 +2649,7 @@ function abrirSheet(html){
 function cerrarSheet(){
   $('#sheetWrap').hidden = true;
   document.body.style.overflow = '';
+  if(AYU && revisarIng) setTimeout(() => { if(revisarIng && $('#sheetWrap').hidden) revisarIngAyu(); }, 0);   // falta confirmar los ingresos
 }
 $('#sheetWrap').addEventListener('click', e => { if(e.target.id === 'sheetWrap') cerrarSheet(); });
 
@@ -3817,7 +3885,7 @@ document.addEventListener('click', ev => {
     case 'tab': buscaCli = false; tab = b.dataset.tab; if(tab !== 'movs'){ filtroCat = null; busqueda = ''; } render(); $('#main').scrollTop = 0; window.scrollTo(0, 0); break;
     case 'mesPrev': mes = addYM(mes, -1); render(); break;
     case 'mesSig': if(mes < mesActual()){ mes = addYM(mes, 1); render(); } break;
-    case 'nuevo': AYU && tab === 'inicio' ? abrirCliente(null) : tab === 'creditos' ? abrirVentaCred() : tab === 'finanzas' ? abrirMenuFin() : tab === 'negocio' ? (AYU ? abrirCliente(null) : abrirMenuNeg()) : tab === 'fijos' ? abrirFijo(null) : (tab === 'movs' && verMov === 'ingresos' && !filtroCat) ? abrirIngreso(null) : abrirGasto(null); break;
+    case 'nuevo': AYU && tab === 'ingAyu' ? abrirIngAyu(null) : AYU && tab === 'inicio' ? abrirCliente(null) : tab === 'creditos' ? abrirVentaCred() : tab === 'finanzas' ? abrirMenuFin() : tab === 'negocio' ? (AYU ? abrirCliente(null) : abrirMenuNeg()) : tab === 'fijos' ? abrirFijo(null) : (tab === 'movs' && verMov === 'ingresos' && !filtroCat) ? abrirIngreso(null) : abrirGasto(null); break;
     case 'editG': { const g = S.gastos.find(x => x.id === b.dataset.id); if(g) abrirGasto(g); break; }
     case 'editF': { const f = S.fijos.find(x => x.id === b.dataset.id); if(f) abrirFijo(f); break; }
     case 'editI': { const i = S.ingresos.find(x => x.id === b.dataset.id); if(i) abrirIngreso(i); break; }
@@ -3859,6 +3927,7 @@ document.addEventListener('click', ev => {
     case 'nProd': abrirProd(null); break;
     case 'nPrest': abrirPrest(null); break;
     case 'editProd': { const p = S.productos.find(x => x.id === b.dataset.id); if(p) abrirProd(p); break; }
+    case 'editIngAyu': { const x = S.ingAyu.find(i => i.id === b.dataset.id); if(x) abrirIngAyu(x); break; }
     case 'editVenta': { const v = S.ventas.find(x => x.id === b.dataset.id); if(v) abrirVenta(v); break; }
     case 'editCompraN': { const c = S.comprasNeg.find(x => x.id === b.dataset.id); if(c) abrirCompraNeg(c); break; }
     case 'editPrest': { const p = S.prestamos.find(x => x.id === b.dataset.id); if(p) abrirPrest(p); break; }
@@ -3913,6 +3982,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && $('
 
 render();
 bloquear();
+if(AYU) revisarIngAyu();
 setTimeout(limpiarFotosSueltas, 4000);
 setTimeout(iniciarNube, 1200);
 setTimeout(buscarActualizacion, 3000);
